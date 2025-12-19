@@ -10,17 +10,60 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
-        "title": "alter-sendme",
-        "width": 800,
-        "height": 600
+        "label": "main",
+        "title": "AltSendme",
+        "width": 1024,
+        "height": 640,
+        "resizable": true,
+        "fullscreen": false,
+        "maximizable": false,
+        "center": true,
+        "hiddenTitle": true,
+        "transparent": true,
+        "decorations": true,
+        "titleBarStyle": "Overlay",
+        "dragDropEnabled": true,
+        "windowEffects": {
+          "effects": [
+            "fullScreenUI",
+            "mica",
+            "tabbed",
+            "blur",
+            "acrylic"
+          ],
+          "state": "active",
+          "radius": 8
+        }
       }
     ],
     "security": {
-      "csp": null
+      "capabilities": [
+        "default",
+        "sendme:default"
+      ],
+      "csp": {
+        "default-src": "'self' customprotocol: asset: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*",
+        "connect-src": "ipc: http://ipc.localhost http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* https: http:",
+        "font-src": "'self' asset: http://asset.localhost blob: data: https:",
+        "img-src": "'self' asset: http://asset.localhost blob: data: https:",
+        "style-src": "'unsafe-inline' 'self'",
+        "script-src": "'self' asset: http://asset.localhost https://gc.zgo.at"
+      },
+      "assetProtocol": {
+        "enable": true,
+        "scope": {
+          "requireLiteralLeadingDot": false,
+          "allow": [
+            "**/*"
+          ]
+        }
+      }
     }
   },
+  "plugins": {},
   "bundle": {
     "active": true,
     "targets": "all",
@@ -30,6 +73,18 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "signingIdentity": "",
+      "providerShortName": ""
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "",
+      "wix": {
+        "language": "en-US"
+      }
+    }
   }
 }
