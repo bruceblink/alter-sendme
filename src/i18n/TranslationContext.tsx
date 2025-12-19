@@ -14,7 +14,7 @@ export const TranslationProvider: React.FC<{ children: ReactNode }> = ({ childre
 
 	useEffect(() => {
 		const handleLanguageChange = () => {
-			const newLang = localStorage.getItem('altsendme-language') || 'en'
+			const newLang = localStorage.getItem('altersendme-language') || 'en'
 			if (newLang !== language) {
 				setLanguage(newLang)
 				i18next.changeLanguage(newLang)
@@ -22,7 +22,7 @@ export const TranslationProvider: React.FC<{ children: ReactNode }> = ({ childre
 		}
 
 		const handleStorageChange = (e: StorageEvent) => {
-			if (e.key === 'altsendme-language') {
+			if (e.key === 'altersendme-language') {
 				handleLanguageChange()
 			}
 		}

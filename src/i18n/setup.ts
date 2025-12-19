@@ -43,7 +43,7 @@ Object.entries(localeFiles).forEach(([path, module]) => {
 
 const getStoredLanguage = (): string => {
   try {
-    const stored = localStorage.getItem('altsendme-language')
+    const stored = localStorage.getItem('altersendme-language')
     return stored || 'en'
   } catch {
     return 'en'
@@ -94,7 +94,7 @@ const changeLanguage = (lng: string): void => {
     i18nInstance.language = lng
     
     try {
-      localStorage.setItem('altsendme-language', lng)
+      localStorage.setItem('altersendme-language', lng)
     } catch (error) {
     }
   }
