@@ -18,7 +18,7 @@ if (!sourceVersion) {
 
 const versions = {
   'src-tauri/package.json': sourceVersion,
-  'web-app/package.json': JSON.parse(fs.readFileSync(webAppPackageJsonPath, 'utf8')).version,
+  'package.json': JSON.parse(fs.readFileSync(webAppPackageJsonPath, 'utf8')).version,
   'src-tauri/tauri.conf.json': JSON.parse(fs.readFileSync(tauriConfigPath, 'utf8')).version,
   'README.md badge': (() => {
     const readme = fs.readFileSync(readmePath, 'utf8');
