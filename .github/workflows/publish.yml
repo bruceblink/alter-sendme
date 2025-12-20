@@ -146,4 +146,4 @@ jobs:
           releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           includeUpdaterJson: true
-          args: "cargo tauri build ${{ matrix.args }}"
+          args: "build ${{ matrix.args }}"
