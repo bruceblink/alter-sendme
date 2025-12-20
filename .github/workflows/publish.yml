@@ -148,4 +148,4 @@ jobs:
           releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           includeUpdaterJson: true
-          args: "build ${{ matrix.args }}"
+          args: ${{ matrix.args }}
