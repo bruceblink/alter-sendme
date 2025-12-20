@@ -6,7 +6,7 @@ const path = require('path');
 const tauriPackageJsonPath = path.join(__dirname, '../src-tauri/package.json');
 const webAppPackageJsonPath = path.join(__dirname, '../package.json');
 const tauriConfigPath = path.join(__dirname, '../src-tauri/tauri.conf.json');
-const cargoTomlPath = path.join(__dirname, '../src-tauri/Cargo.toml');
+const cargoTomlPath = path.join(__dirname, '../Cargo.toml');
 const readmePath = path.join(__dirname, '../README.md');
 
 const tauriPackageJson = JSON.parse(fs.readFileSync(tauriPackageJsonPath, 'utf8'));
