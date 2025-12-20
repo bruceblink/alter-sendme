@@ -1,10 +1,10 @@
 [package]
 name = "alter-sendme"
-version = "0.1.0"
+version.workspace = true
 description = "P2P file sharing with NAT hole punching"
-authors = ["likanug"]
-edition = "2024"
-rust-version = "1.89"
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -32,7 +32,6 @@ tracing-subscriber.workspace = true
 walkdir.workspace = true
 sendme = {path = "../sendme"}
 serde_json.workspace = true
-serde.workspace = true
 
 [features]
 default = ["custom-protocol"]
