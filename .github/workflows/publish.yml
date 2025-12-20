@@ -77,13 +77,11 @@ jobs:
         shell: bash
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
-          cd src-tauri
-          npm pkg set version="$VERSION"
-          npm run sync-version
-          node ../scripts/validate-version.js
+          node scripts/validate-version.cjs
+          (cd src-tauri && npm pkg set version="$VERSION" && npm run sync-version)
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-      # --------------------
+# --------------------
       # macOS signing
       # --------------------
       - name: Import Apple certificate
