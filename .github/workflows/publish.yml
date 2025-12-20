@@ -34,7 +34,8 @@ jobs:
       # --------------------
       # Node + pnpm
       # --------------------
-      - uses: actions/setup-node@v4
+      - name: setup node
+        uses: actions/setup-node@v4
         with:
           node-version: lts/*
 
@@ -48,11 +49,13 @@ jobs:
       # --------------------
       # Rust
       # --------------------
-      - uses: dtolnay/rust-toolchain@stable
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      - uses: swatinem/rust-cache@v2
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
         with:
           workspaces: ./ -> target
 
@@ -149,3 +152,30 @@ jobs:
           releaseDraft: true
           includeUpdaterJson: true
           args: ${{ matrix.args }}
+
+      # -----------------------------
+      # Commit synced version after build + release
+      # -----------------------------
+      - name: Commit synced version
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          TARGET_BRANCH="main"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 关键 1️⃣：确保在 main 上
+          git fetch origin $TARGET_BRANCH
+          git checkout $TARGET_BRANCH
+          git pull --rebase origin $TARGET_BRANCH
+          
+          git add README.md package.json src-tauri/tauri.conf.json
+          
+          git commit -m "chore: sync app version to $VERSION [skip ci]" || {
+            echo "No changes to commit"
+            exit 0
+          }
+          
+          # 关键 2️⃣：用 push --force-with-lease
+          git push --force-with-lease origin $TARGET_BRANCH
