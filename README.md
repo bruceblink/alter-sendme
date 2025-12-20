@@ -53,14 +53,14 @@ The easiest way to get started is by downloading one of the following versions f
   </tr>
   <tr>
     <td><b>Windows</b></td>
-    <td><a href='https://github.com/bruceblink/alter-sendme/releases/download/v0.1.1/AlterSendme_0.1.0_x64-setup.exe'>AlterSendme.exe</a></td>
+    <td><a href='https://github.com/bruceblink/alter-sendme/releases/download/v0.1.1/AlterSendme_0.1.1_x64-setup.exe'>AlterSendme.exe</a></td>
   </tr>
   <tr>
     <td><b>macOS</b></td>
-    <td><a href='https://github.com/bruceblink/alter-sendme/releases/download/v0.1.1/AlterSendme_0.1.0_universal.dmg'>AlterSendme.dmg</a></td>
+    <td><a href='https://github.com/bruceblink/alter-sendme/releases/download/v0.1.1/AlterSendme_0.1.1_universal.dmg'>AlterSendme.dmg</a></td>
   <tr>
     <td><b>Linux </b></td>
-    <td><a href='https://github.com/bruceblink/alter-sendme/releases/download/v0.1.1/AlterSendme_0.1.0_amd64.deb'>AlterSendme.deb</a></td>
+    <td><a href='https://github.com/bruceblink/alter-sendme/releases/download/v0.1.1/AlterSendme_0.1.1_amd64.deb'>AlterSendme.deb</a></td>
   </tr>
 </table>
 
