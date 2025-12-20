@@ -31,7 +31,7 @@ fs.writeFileSync(cargoTomlPath, cargoToml);
 
 let readme = fs.readFileSync(readmePath, 'utf8');
 readme = readme.replace(/\/download\/v[\d.]+/g, `/download/v${version}`);
-readme = readme.replace(/AltSendme_[\d.]+_/g, `AltSendme_${version}_`);
+readme = readme.replace(/AlterSendme_[\d.]+_/g, `AlterSendme_${version}_`);
 readme = readme.replace(/\[badge-version]:\s*https:\/\/img\.shields\.io\/badge\/version-[\d.]+-blue/g, `[badge-version]: https://img.shields.io/badge/version-${version}-blue`);
 
 fs.writeFileSync(readmePath, readme);
