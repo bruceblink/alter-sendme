@@ -24,12 +24,15 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+      # --------------------
+      # Checkout
+      # --------------------
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       # --------------------
-      # Node
+      # Node + pnpm
       # --------------------
       - uses: actions/setup-node@v4
         with:
@@ -47,14 +50,14 @@ jobs:
       # --------------------
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin x86_64-apple-darwin' || '' }}
 
       - uses: swatinem/rust-cache@v2
         with:
-          workspaces: ./src-tauri -> target
+          workspaces: ./ -> target
 
       # --------------------
-      # Platform deps
+      # Platform-specific dependencies
       # --------------------
       - name: Linux deps
         if: matrix.os == 'ubuntu-22.04'
@@ -71,7 +74,7 @@ jobs:
         run: choco install nsis -y
 
       # --------------------
-      # Version sync
+      # Sync version from tag
       # --------------------
       - name: Sync version from tag
         shell: bash
@@ -80,8 +83,8 @@ jobs:
           (cd src-tauri && npm pkg set version="$VERSION" && npm run sync-version && npm run validate-version)
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-# --------------------
-      # macOS signing
+      # --------------------
+      # macOS signing (optional)
       # --------------------
       - name: Import Apple certificate
         if: matrix.os == 'macos-latest' && env.APPLE_CERTIFICATE
@@ -99,7 +102,7 @@ jobs:
           security list-keychain -d user -s $KEYCHAIN
 
       # --------------------
-      # Release notes
+      # Generate release notes
       # --------------------
       - name: Generate release notes
         id: notes
@@ -125,7 +128,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       # --------------------
-      # Tauri publish
+      # Tauri build + publish
       # --------------------
       - uses: tauri-apps/tauri-action@v0.5
         env:
@@ -137,10 +140,10 @@ jobs:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         with:
-          projectPath: ./src-tauri
+          projectPath: ./
           tagName: ${{ github.ref_name }}
           releaseName: AlterSendme ${{ env.VERSION }}
           releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           includeUpdaterJson: true
-          args: ${{ matrix.args }}
+          args: "cargo tauri build ${{ matrix.args }}"
