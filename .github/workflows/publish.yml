@@ -77,8 +77,7 @@ jobs:
         shell: bash
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
-          node scripts/validate-version.cjs
-          (cd src-tauri && npm pkg set version="$VERSION" && npm run sync-version)
+          (cd src-tauri && npm pkg set version="$VERSION" && npm run sync-version && npm run validate-version)
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
 # --------------------
