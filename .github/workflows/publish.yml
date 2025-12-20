@@ -170,7 +170,7 @@ jobs:
           git checkout $TARGET_BRANCH
           git pull --rebase origin $TARGET_BRANCH
           
-          git add README.md package.json src-tauri/tauri.conf.json
+          git add README.md package.json src-tauri/tauri.conf.json Cargo.toml Cargo.lock
           
           git commit -m "chore: sync app version to $VERSION [skip ci]" || {
             echo "No changes to commit"
