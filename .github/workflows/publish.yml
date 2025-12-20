@@ -108,19 +108,21 @@ jobs:
         id: notes
         shell: bash
         run: |
-          CUR="${{ github.ref_name }}"
+          CUR="${GITHUB_REF_NAME}"
           PREV=$(git tag --sort=-v:refname | grep -v "^$CUR$" | head -n 1)
-
-          RANGE=${PREV:+$PREV..HEAD}
-          LOG=$(git log $RANGE --pretty="- %s (%h)" --no-merges | head -50)
-
+          
+          if [ -z "$PREV" ]; then
+          LOG=$(git log HEAD --pretty="- %s (%h)" --no-merges | head -50)
+          else
+          LOG=$(git log $PREV..HEAD --pretty="- %s (%h)" --no-merges | head -50)
+          fi
+          
           {
             echo "## What's Changed"
             echo
             echo "${LOG:-- Initial release}"
-            echo
-            [ -n "$PREV" ] && \
-              echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREV...$CUR"
+          echo
+          [ -n "$PREV" ] && echo "**Full Changelog**: https://github.com/${GITHUB_REPOSITORY}/compare/$PREV...$CUR"
           } > notes.md
 
           echo "body<<EOF" >> $GITHUB_OUTPUT
