@@ -1,6 +1,6 @@
 [package]
 name = "sendme"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
 keywords = ["scp", "sftp", "network", "p2p", "holepunching"]
