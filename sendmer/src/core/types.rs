@@ -30,7 +30,7 @@ pub struct ReceiveResult {
     pub file_path: PathBuf,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct SendOptions {
     pub relay_mode: RelayModeOption,
     pub ticket_type: AddrInfoOptions,
