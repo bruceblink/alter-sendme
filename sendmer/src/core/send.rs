@@ -1,4 +1,4 @@
-use crate::core::types::{SendResult, SendOptions, AddrInfoOptions, apply_options, get_or_create_secret, AppHandle};
+use crate::core::types::{SendResult, SendOptions, AddrInfoOptions, apply_options, get_or_create_secret, AppHandle, SendArgs, print_hash};
 use anyhow::Context;
 use iroh::{
     discovery::pkarr::PkarrPublisher,
@@ -6,15 +6,16 @@ use iroh::{
 };
 use iroh_blobs::{api::{
     TempTag,
-}, protocol, provider::{
+}, protocol, provider, provider::{
     events::{ConnectMode, EventMask, EventSender, RequestMode},
 }, store::fs::FsStore, ticket::BlobTicket, BlobFormat, BlobsProtocol, Hash};
 use n0_future::{task::AbortOnDropHandle};
 use rand::Rng;
 use std::{
-    path::{Component, Path, PathBuf},
+    path::{PathBuf},
     time::{Duration, Instant},
 };
+use indicatif::{HumanBytes, MultiProgress};
 use iroh::protocol::Router;
 use tokio::{select, sync::mpsc};
 use n0_future::StreamExt;
@@ -103,45 +104,8 @@ pub async fn start_share(
     })
 }
 
-pub fn canonicalized_path_to_string(
-    path: impl AsRef<Path>,
-    must_be_relative: bool,
-) -> anyhow::Result<String> {
-    let mut path_str = String::new();
-    let parts = path
-        .as_ref()
-        .components()
-        .filter_map(|c| match c {
-            Component::Normal(x) => {
-                let c = match x.to_str() {
-                    Some(c) => c,
-                    None => return Some(Err(anyhow::anyhow!("invalid character in path"))),
-                };
-
-                if !c.contains('/') && !c.contains('\\') {
-                    Some(Ok(c))
-                } else {
-                    Some(Err(anyhow::anyhow!("invalid path component {:?}", c)))
-                }
-            }
-            Component::RootDir => {
-                if must_be_relative {
-                    Some(Err(anyhow::anyhow!("invalid path component {:?}", c)))
-                } else {
-                    path_str.push('/');
-                    None
-                }
-            }
-            _ => Some(Err(anyhow::anyhow!("invalid path component {:?}", c))),
-        })
-        .collect::<anyhow::Result<Vec<_>>>()?;
-    let parts = parts.join("/");
-    path_str.push_str(&parts);
-    Ok(path_str)
-}
-
 async fn show_provide_progress_with_logging(
-    mut recv: mpsc::Receiver<iroh_blobs::provider::events::ProviderMessage>,
+    mut recv: mpsc::Receiver<provider::events::ProviderMessage>,
     app_handle: AppHandle,
     total_file_size: u64,
     entry_type: String,
@@ -177,11 +141,11 @@ async fn show_provide_progress_with_logging(
                 };
 
                 match item {
-                    iroh_blobs::provider::events::ProviderMessage::ClientConnectedNotify(_msg) => {
+                    provider::events::ProviderMessage::ClientConnectedNotify(_msg) => {
                     }
-                    iroh_blobs::provider::events::ProviderMessage::ConnectionClosed(_msg) => {
+                    provider::events::ProviderMessage::ConnectionClosed(_msg) => {
                     }
-                    iroh_blobs::provider::events::ProviderMessage::GetRequestReceivedNotify(msg) => {
+                    provider::events::ProviderMessage::GetRequestReceivedNotify(msg) => {
                         let connection_id = msg.connection_id;
                         let request_id = msg.request_id;
                         
@@ -206,7 +170,7 @@ async fn show_provide_progress_with_logging(
                             
                             while let Ok(Some(update)) = rx.recv().await {
                                 match update {
-                                    iroh_blobs::provider::events::RequestUpdate::Started(_m) => {
+                                    provider::events::RequestUpdate::Started(_m) => {
                                         if !transfer_started {
                                             transfer_states_task.lock().await.insert(
                                                 (connection_id, request_id),
@@ -224,7 +188,7 @@ async fn show_provide_progress_with_logging(
                                             has_any_transfer_task.store(true, Ordering::SeqCst);
                                         }
                                     }
-                                    iroh_blobs::provider::events::RequestUpdate::Progress(m) => {
+                                    provider::events::RequestUpdate::Progress(m) => {
                                         if !transfer_started {
                                             if !has_emitted_started_task.swap(true, Ordering::SeqCst) {
                                                 emit_event(&app_handle_task, "transfer-started");
@@ -244,7 +208,7 @@ async fn show_provide_progress_with_logging(
                                             emit_progress_event(&app_handle_task, m.end_offset, state.total_size, speed_bps);
                                         }
                                     }
-                                    iroh_blobs::provider::events::RequestUpdate::Completed(_m) => {
+                                    provider::events::RequestUpdate::Completed(_m) => {
                                         if transfer_started && !request_completed {
                                             transfer_states_task.lock().await.remove(&(connection_id, request_id));
                                             request_completed = true;
@@ -292,7 +256,7 @@ async fn show_provide_progress_with_logging(
                                             }
                                         }
                                     }
-                                    iroh_blobs::provider::events::RequestUpdate::Aborted(_m) => {
+                                    provider::events::RequestUpdate::Aborted(_m) => {
                                         tracing::warn!("Request aborted: conn {} req {}", 
                                             connection_id, request_id);
                                         if transfer_started && !request_completed {
@@ -470,7 +434,7 @@ pub async fn send_core(args: SendCoreArgs) -> anyhow::Result<SendCoreResult> {
     // import
     // --------------------------------------------------
     let (temp_tag, size, _collection) =
-        crate::core::main_reference::import(path.clone(), blobs.store())
+        crate::core::common::import(path.clone(), blobs.store())
             .await
             .context("failed to import path")?;
 
@@ -509,4 +473,80 @@ pub async fn send_core(args: SendCoreArgs) -> anyhow::Result<SendCoreResult> {
         entry_type,
         hash,
     })
+}
+
+
+pub async fn send(args: SendArgs) -> anyhow::Result<()> {
+    // 1️⃣ 构造 EventSender，用于 CLI 进度显示
+    let (progress_tx, progress_rx) = mpsc::channel(32);
+    let mp = MultiProgress::new();
+    let mp2 = mp.clone();
+    let progress_handle = AbortOnDropHandle::new(
+        n0_future::task::spawn(crate::core::common::show_provide_progress(mp2, progress_rx))
+    );
+
+    let event_sender = Some(EventSender::new(
+        progress_tx,
+        EventMask {
+            connected: ConnectMode::Notify,
+            get: RequestMode::NotifyLog,
+            ..EventMask::DEFAULT
+        },
+    ));
+
+    // 2️⃣ 构造 send_core 参数
+    let core_args = SendCoreArgs {
+        path: args.path.clone(),
+        options: SendOptions {
+            relay_mode: args.common.relay,
+            ticket_type: args.ticket_type,
+            magic_ipv4_addr: args.common.magic_ipv4_addr,
+            magic_ipv6_addr: args.common.magic_ipv6_addr,
+        },
+        event_sender,
+    };
+
+    // 3️⃣ 调用 send_core
+    let SendCoreResult {
+        router,
+        temp_tag,
+        store: _store,
+        blobs_data_dir,
+        size,
+        entry_type,
+        hash,
+    } = send_core(core_args).await?;
+
+    // 4️⃣ 构造 ticket
+    let mut addr = router.endpoint().addr();
+    apply_options(&mut addr, args.ticket_type);
+    let ticket = BlobTicket::new(addr, hash, BlobFormat::HashSeq);
+
+    // 5️⃣ CLI 输出
+    println!(
+        "imported {} {}, {}, hash {}",
+        entry_type,
+        args.path.display(),
+        HumanBytes(size),
+        print_hash(&hash, args.common.format),
+    );
+
+    println!("to get this data, use");
+    println!("sendmer receive {ticket}");
+
+    // 6️⃣ 等待 ctrl-c
+    tokio::signal::ctrl_c().await?;
+    drop(temp_tag);
+
+    println!("shutting down");
+    tokio::time::timeout(Duration::from_secs(2), router.shutdown()).await??;
+
+    // 删除临时目录
+    tokio::fs::remove_dir_all(blobs_data_dir).await?;
+    drop(router);
+
+    // 等待进度条完成
+    progress_handle.await.ok();
+
+    Ok(())
 }
