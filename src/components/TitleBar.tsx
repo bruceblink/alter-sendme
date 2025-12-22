@@ -7,12 +7,12 @@ interface TitleBarProps {
 
 export const TitleBar = ({ title = 'ALT-SENDME' }: TitleBarProps) => {
   const handleMinimize = async () => {
-    const window = await getCurrentWindow()
+    const window = getCurrentWindow()
     await window.minimize()
   }
 
   const handleClose = async () => {
-    const window = await getCurrentWindow()
+    const window = getCurrentWindow()
     await window.close()
   }
 
