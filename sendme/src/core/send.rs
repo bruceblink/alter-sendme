@@ -195,7 +195,7 @@ async fn import(
                 let import = db.add_path_with_opts(AddPathOptions {
                     path,
                     mode: ImportMode::TryReference,
-                    format: iroh_blobs::BlobFormat::Raw,
+                    format: BlobFormat::Raw,
                 });
                 let mut stream = import.stream().await;
                 let mut item_size = 0;
@@ -306,10 +306,10 @@ async fn show_provide_progress_with_logging(
     let completed_requests = Arc::new(AtomicUsize::new(0));
     let has_emitted_started = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let has_any_transfer = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let last_request_time: Arc<tokio::sync::Mutex<Option<Instant>>> = Arc::new(tokio::sync::Mutex::new(None));
+    let last_request_time: Arc<Mutex<Option<Instant>>> = Arc::new(Mutex::new(None));
     
     loop {
-        tokio::select! {
+        select! {
             biased;
             item = recv.recv() => {
                 let Some(item) = item else {
