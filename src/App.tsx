@@ -130,7 +130,7 @@ function AppContent() {
         <button
           onClick={async () => {
             try {
-              await openUrl('https://buymeacoffee.com/tny_antny')
+              await openUrl('https://buymeacoffee.com/bruceblink')
             } catch (error) {
               console.error('Failed to open URL:', error)
             }
