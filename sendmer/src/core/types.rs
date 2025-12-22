@@ -195,7 +195,7 @@ pub enum Commands {
     Receive(ReceiveArgs),
 }
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 pub struct CommonArgs {
     /// The IPv4 address that magicsocket will listen on.
     ///
@@ -297,3 +297,13 @@ pub struct ReceiveArgs {
     pub common: CommonArgs,
 }
 
+impl From<CommonArgs> for ReceiveOptions {
+    fn from(common: CommonArgs) -> Self {
+        ReceiveOptions {
+            relay_mode: common.relay,               // RelayModeOption 类型一致
+            magic_ipv4_addr: common.magic_ipv4_addr,
+            magic_ipv6_addr: common.magic_ipv6_addr,
+            output_dir: None,                       // CLI 模式可以先不指定输出目录
+        }
+    }
+}
