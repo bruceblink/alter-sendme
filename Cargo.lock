@@ -5498,6 +5498,7 @@ dependencies = [
  "derive_more 2.1.0",
  "dirs",
  "duct",
+ "futures",
  "futures-buffered",
  "hex",
  "indicatif",

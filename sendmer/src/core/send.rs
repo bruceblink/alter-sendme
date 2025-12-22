@@ -5,29 +5,24 @@ use iroh::{
     discovery::pkarr::PkarrPublisher,
     Endpoint, RelayMode,
 };
-use iroh_blobs::{
-    api::{
-        blobs::{AddPathOptions, ImportMode},
-        Store, TempTag,
-    },
-    format::collection::Collection,
-    provider::{
-        events::{ConnectMode, EventMask, EventSender, RequestMode},
-    },
-    store::fs::FsStore,
-    ticket::BlobTicket,
-    BlobFormat, BlobsProtocol,
-};
+use iroh_blobs::{api::{
+    blobs::{AddPathOptions, ImportMode},
+    Store, TempTag,
+}, format::collection::Collection, protocol, provider::{
+    events::{ConnectMode, EventMask, EventSender, RequestMode},
+}, store::fs::FsStore, ticket::BlobTicket, BlobFormat, BlobsProtocol, Hash};
 use n0_future::{task::AbortOnDropHandle, BufferedStreamExt};
 use rand::Rng;
 use std::{
     path::{Component, Path, PathBuf},
     time::{Duration, Instant},
 };
+use iroh::protocol::Router;
 use tokio::{select, sync::mpsc};
 use tracing::trace;
 use walkdir::WalkDir;
 use n0_future::StreamExt;
+use tokio::time::timeout;
 
 fn emit_event(app_handle: &AppHandle, event_name: &str) {
     if let Some(e) = app_handle
@@ -521,4 +516,132 @@ async fn show_provide_progress_with_logging(
     }
     
     Ok(())
+}
+
+#[derive(Debug)]
+pub struct SendCoreArgs {
+    pub path: PathBuf,
+    pub options: SendOptions,
+
+    /// iroh-blobs 的事件发送器（可选）
+    /// send_core 不关心事件内容，只负责接入
+    pub event_sender: Option<EventSender>,
+}
+
+pub struct SendCoreResult {
+    pub router: Router,
+    pub temp_tag: TempTag,
+    pub store: FsStore,
+    pub blobs_data_dir: PathBuf,
+    pub size: u64,
+    pub entry_type: String,
+    pub hash: Hash,
+}
+
+
+pub async fn send_core(args: SendCoreArgs) -> anyhow::Result<SendCoreResult> {
+    let SendCoreArgs {
+        path,
+        options,
+        event_sender,
+    } = args;
+
+    // --------------------------------------------------
+    // endpoint / relay 配置
+    // --------------------------------------------------
+    let secret_key = get_or_create_secret()?;
+    let relay_mode: RelayMode = options.relay_mode.clone().into();
+
+    let mut builder = Endpoint::builder()
+        .alpns(vec![protocol::ALPN.to_vec()])
+        .secret_key(secret_key)
+        .relay_mode(relay_mode.clone());
+
+    if options.ticket_type == AddrInfoOptions::Id {
+        builder = builder.discovery(PkarrPublisher::n0_dns());
+    }
+    if let Some(addr) = options.magic_ipv4_addr {
+        builder = builder.bind_addr_v4(addr);
+    }
+    if let Some(addr) = options.magic_ipv6_addr {
+        builder = builder.bind_addr_v6(addr);
+    }
+
+    // --------------------------------------------------
+    // blobs 数据目录
+    // --------------------------------------------------
+    let suffix = rand::rng().random::<[u8; 16]>();
+    let temp_base = std::env::temp_dir();
+    let blobs_data_dir =
+        temp_base.join(format!(".sendmer-send-{}", hex::encode(suffix)));
+
+    if blobs_data_dir.exists() {
+        anyhow::bail!(
+            "can not share twice from the same directory: {}",
+            blobs_data_dir.display()
+        );
+    }
+
+    let cwd = std::env::current_dir()?;
+    if cwd.join(&path) == cwd {
+        anyhow::bail!("can not share from the current directory");
+    }
+
+    tokio::fs::create_dir_all(&blobs_data_dir).await?;
+
+    // --------------------------------------------------
+    // endpoint / store / blobs
+    // --------------------------------------------------
+    let endpoint = builder.bind().await?;
+
+    let store = FsStore::load(&blobs_data_dir).await?;
+
+    let blobs = BlobsProtocol::new(
+        &store,
+        event_sender,
+    );
+
+    // --------------------------------------------------
+    // import
+    // --------------------------------------------------
+    let (temp_tag, size, _collection) =
+        crate::core::main_reference::import(path.clone(), blobs.store())
+            .await
+            .context("failed to import path")?;
+
+    let hash: Hash = temp_tag.hash();
+
+    let entry_type = if path.is_file() {
+        "file".to_string()
+    } else {
+        "directory".to_string()
+    };
+
+    // --------------------------------------------------
+    // router
+    // --------------------------------------------------
+    let router = Router::builder(endpoint)
+        .accept(protocol::ALPN, blobs.clone())
+        .spawn();
+
+    // 等待 endpoint 上线（relay）
+    let ep = router.endpoint();
+    timeout(Duration::from_secs(30), async {
+        if !matches!(relay_mode, RelayMode::Disabled) {
+            let _ = ep.online().await;
+        }
+    }).await.context("timeout waiting for endpoint to become online")?;
+
+    // --------------------------------------------------
+    // 返回运行态
+    // --------------------------------------------------
+    Ok(SendCoreResult {
+        router,
+        temp_tag,
+        store,
+        blobs_data_dir,
+        size,
+        entry_type,
+        hash,
+    })
 }
