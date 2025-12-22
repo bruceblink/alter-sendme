@@ -1,5 +1,5 @@
 use crate::core::types::{SendResult, SendOptions, AddrInfoOptions, apply_options, get_or_create_secret, AppHandle, SendArgs, print_hash};
-use anyhow::Context;
+use anyhow::{ensure, Context};
 use iroh::{
     discovery::pkarr::PkarrPublisher,
     Endpoint, RelayMode,
@@ -15,11 +15,17 @@ use std::{
     path::{PathBuf},
     time::{Duration, Instant},
 };
-use indicatif::{HumanBytes, MultiProgress};
+use futures_buffered::BufferedStreamExt;
+use indicatif::{HumanBytes, MultiProgress, ProgressBar};
 use iroh::protocol::Router;
+use iroh_blobs::api::blobs::{AddPathOptions, AddProgressItem, ImportMode};
+use iroh_blobs::api::Store;
+use iroh_blobs::format::collection::Collection;
 use tokio::{select, sync::mpsc};
 use n0_future::StreamExt;
 use tokio::time::timeout;
+use walkdir::WalkDir;
+use crate::core::common::canonicalized_path_to_string;
 
 fn emit_event(app_handle: &AppHandle, event_name: &str) {
     if let Some(e) = app_handle
@@ -434,7 +440,7 @@ pub async fn send_core(args: SendCoreArgs) -> anyhow::Result<SendCoreResult> {
     // import
     // --------------------------------------------------
     let (temp_tag, size, _collection) =
-        crate::core::common::import(path.clone(), blobs.store())
+        import(path.clone(), blobs.store())
             .await
             .context("failed to import path")?;
 
@@ -549,4 +555,118 @@ pub async fn send(args: SendArgs) -> anyhow::Result<()> {
     progress_handle.await.ok();
 
     Ok(())
+}
+
+/// Import from a file or directory into the database.
+///
+/// The returned tag always refers to a collection. If the input is a file, this
+/// is a collection with a single blob, named like the file.
+///
+/// If the input is a directory, the collection contains all the files in the
+/// directory.
+/// 带进度条 / GUI 的 import
+pub async fn import(
+    path: PathBuf,
+    db: &Store,
+) -> anyhow::Result<(TempTag, u64, Collection)> {
+    // 调用核心 import_core
+    let (temp_tag, size, collection) = import_core(path.clone(), db).await?;
+
+    // 如果需要显示进度条，可以在这里模拟一个总进度（可选）
+    let op = ProgressBar::new(size);
+    op.set_message(format!(
+        "Imported {} files ({})",
+        collection.len(),
+        size
+    ));
+    op.finish_and_clear();
+
+    Ok((temp_tag, size, collection))
+}
+
+pub async fn import_core(
+    path: PathBuf,
+    db: &Store,
+) -> anyhow::Result<(TempTag, u64, Collection)> {
+    let parallelism = num_cpus::get();
+    let path = path.canonicalize()?;
+    ensure!(path.exists(), "path {} does not exist", path.display());
+
+    let root = path.parent().context("failed to get parent of path")?;
+
+    // 遍历文件，将目录结构扁平化为 (name, path) 列表
+    let files = WalkDir::new(path.clone()).into_iter();
+    let data_sources: Vec<(String, PathBuf)> = files
+        .map(|entry| {
+            let entry = entry?;
+            if !entry.file_type().is_file() {
+                return Ok(None);
+            }
+            let path = entry.into_path();
+            let relative = path.strip_prefix(root)?;
+            let name = canonicalized_path_to_string(relative, true)?;
+            Ok(Some((name, path)))
+        })
+        .filter_map(anyhow::Result::transpose)
+        .collect::<anyhow::Result<Vec<_>>>()?;
+
+    // 异步导入文件，使用 num_cpus 并行
+    let mut names_and_tags = futures::stream::iter(data_sources)
+        .map(|(name, path)| {
+            let db = db.clone();
+            async move {
+                let import = db.add_path_with_opts(AddPathOptions {
+                    path,
+                    mode: ImportMode::TryReference,
+                    format: BlobFormat::Raw,
+                });
+                let mut stream = import.stream().await;
+                let mut item_size = 0;
+                let temp_tag = loop {
+                    let item = stream
+                        .next()
+                        .await
+                        .context("import stream ended without a tag")?;
+                    match item {
+                        AddProgressItem::Size(size) => {
+                            item_size = size;
+                        }
+                        AddProgressItem::CopyProgress(_) => {}
+                        AddProgressItem::CopyDone => {}
+                        AddProgressItem::OutboardProgress(_) => {}
+                        AddProgressItem::Error(cause) => {
+                            anyhow::bail!("error importing {}: {}", name, cause);
+                        }
+                        AddProgressItem::Done(tt) => {
+                            break tt;
+                        }
+                    }
+                };
+                anyhow::Ok((name, temp_tag, item_size))
+            }
+        })
+        .buffered_unordered(parallelism)
+        .collect::<Vec<_>>()
+        .await
+        .into_iter()
+        .collect::<anyhow::Result<Vec<_>>>()?;
+
+    // 按文件名排序
+    names_and_tags.sort_by(|(a, _, _), (b, _, _)| a.cmp(b));
+
+    // 总大小
+    let size = names_and_tags.iter().map(|(_, _, s)| *s).sum::<u64>();
+
+    // 构造 collection，并保留 temp tags 防止被 gc
+    let (collection, tags) = names_and_tags
+        .into_iter()
+        .map(|(name, tag, _)| ((name, tag.hash()), tag))
+        .unzip::<_, _, Collection, Vec<_>>();
+
+    // store collection，得到总的 temp_tag
+    let temp_tag = collection.clone().store(db).await?;
+
+    // 释放 temp_tag，数据由 collection 保持
+    drop(tags);
+    Ok((temp_tag, size, collection))
 }
