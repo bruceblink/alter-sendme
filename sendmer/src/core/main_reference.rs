@@ -2,8 +2,6 @@
 
 use std::{
     collections::BTreeMap,
-    fmt::{Display, Formatter},
-    net::{SocketAddrV4, SocketAddrV6},
     path::{Component, Path, PathBuf},
     str::FromStr,
     sync::{Arc, Mutex},
@@ -11,10 +9,6 @@ use std::{
 };
 
 use anyhow::Context;
-use clap::{
-    error::{ContextKind, ErrorKind},
-    CommandFactory, Parser, Subcommand,
-};
 use console::style;
 use data_encoding::HEXLOWER;
 use futures_buffered::BufferedStreamExt;
@@ -23,7 +17,7 @@ use indicatif::{
 };
 use iroh::{
     discovery::{dns::DnsDiscovery, pkarr::PkarrPublisher},
-    Endpoint, RelayMode, RelayUrl, SecretKey,
+    Endpoint, RelayMode, SecretKey,
 };
 use iroh_blobs::{
     api::{
@@ -42,240 +36,16 @@ use iroh_blobs::{
     },
     store::fs::FsStore,
     ticket::BlobTicket,
-    BlobFormat, BlobsProtocol, Hash,
+    BlobFormat, BlobsProtocol,
 };
 use n0_future::{task::AbortOnDropHandle, FuturesUnordered, StreamExt};
 use rand::Rng;
-use serde::{Deserialize, Serialize};
 use tokio::{select, sync::mpsc};
-use tracing::{error, trace};
+use tracing::{error};
 use walkdir::WalkDir;
+use crate::AddrInfoOptions;
+use crate::core::types::{apply_options, print_hash, ReceiveArgs, SendArgs};
 
-/// Send a file or directory between two machines, using blake3 verified streaming.
-///
-/// For all subcommands, you can specify a secret key using the IROH_SECRET
-/// environment variable. If you don't, a random one will be generated.
-///
-/// You can also specify a port for the magicsocket. If you don't, a random one
-/// will be chosen.
-#[derive(Parser, Debug)]
-#[command(version, about)]
-pub struct Args {
-    #[clap(subcommand)]
-    pub command: Commands,
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub enum Format {
-    #[default]
-    Hex,
-    Cid,
-}
-
-impl FromStr for Format {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_ascii_lowercase().as_str() {
-            "hex" => Ok(Format::Hex),
-            "cid" => Ok(Format::Cid),
-            _ => Err(anyhow::anyhow!("invalid format")),
-        }
-    }
-}
-
-impl Display for Format {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Format::Hex => write!(f, "hex"),
-            Format::Cid => write!(f, "cid"),
-        }
-    }
-}
-
-fn print_hash(hash: &Hash, format: Format) -> String {
-    match format {
-        Format::Hex => hash.to_hex().to_string(),
-        Format::Cid => hash.to_string(),
-    }
-}
-
-#[derive(Subcommand, Debug)]
-pub enum Commands {
-    /// Send a file or directory.
-    Send(SendArgs),
-
-    /// Receive a file or directory.
-    #[clap(visible_alias = "recv")]
-    Receive(ReceiveArgs),
-}
-
-#[derive(Parser, Debug)]
-pub struct CommonArgs {
-    /// The IPv4 address that magicsocket will listen on.
-    ///
-    /// If None, defaults to a random free port, but it can be useful to specify a fixed
-    /// port, e.g. to configure a firewall rule.
-    #[clap(long, default_value = None)]
-    pub magic_ipv4_addr: Option<SocketAddrV4>,
-
-    /// The IPv6 address that magicsocket will listen on.
-    ///
-    /// If None, defaults to a random free port, but it can be useful to specify a fixed
-    /// port, e.g. to configure a firewall rule.
-    #[clap(long, default_value = None)]
-    pub magic_ipv6_addr: Option<SocketAddrV6>,
-
-    #[clap(long, default_value_t = Format::Hex)]
-    pub format: Format,
-
-    #[clap(short = 'v', long, action = clap::ArgAction::Count)]
-    pub verbose: u8,
-
-    /// Suppress progress bars.
-    #[clap(long, default_value_t = false)]
-    pub no_progress: bool,
-
-    /// The relay URL to use as a home relay,
-    ///
-    /// Can be set to "disabled" to disable relay servers and "default"
-    /// to configure default servers.
-    #[clap(long, default_value_t = RelayModeOption::Default)]
-    pub relay: RelayModeOption,
-
-    #[clap(long)]
-    pub show_secret: bool,
-}
-
-/// Available command line options for configuring relays.
-#[derive(Clone, Debug)]
-pub enum RelayModeOption {
-    /// Disables relays altogether.
-    Disabled,
-    /// Uses the default relay servers.
-    Default,
-    /// Uses a single, custom relay server by URL.
-    Custom(RelayUrl),
-}
-
-impl FromStr for RelayModeOption {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "disabled" => Ok(Self::Disabled),
-            "default" => Ok(Self::Default),
-            _ => Ok(Self::Custom(RelayUrl::from_str(s)?)),
-        }
-    }
-}
-
-impl Display for RelayModeOption {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Disabled => f.write_str("disabled"),
-            Self::Default => f.write_str("default"),
-            Self::Custom(url) => url.fmt(f),
-        }
-    }
-}
-
-impl From<RelayModeOption> for RelayMode {
-    fn from(value: RelayModeOption) -> Self {
-        match value {
-            RelayModeOption::Disabled => RelayMode::Disabled,
-            RelayModeOption::Default => RelayMode::Default,
-            RelayModeOption::Custom(url) => RelayMode::Custom(url.into()),
-        }
-    }
-}
-
-#[derive(Parser, Debug)]
-pub struct SendArgs {
-    /// Path to the file or directory to send.
-    ///
-    /// The last component of the path will be used as the name of the data
-    /// being shared.
-    pub path: PathBuf,
-
-    /// What type of ticket to use.
-    ///
-    /// Use "id" for the shortest type only including the node ID,
-    /// "addresses" to only add IP addresses without a relay url,
-    /// "relay" to only add a relay address, and leave the option out
-    /// to use the biggest type of ticket that includes both relay and
-    /// address information.
-    ///
-    /// Generally, the more information the higher the likelyhood of
-    /// a successful connection, but also the bigger a ticket to connect.
-    ///
-    /// This is most useful for debugging which methods of connection
-    /// establishment work well.
-    #[clap(long, default_value_t = AddrInfoOptions::RelayAndAddresses)]
-    pub ticket_type: AddrInfoOptions,
-
-    #[clap(flatten)]
-    pub common: CommonArgs,
-
-    /// Store the receive command in the clipboard.
-    #[cfg(feature = "clipboard")]
-    #[clap(short = 'c', long)]
-    pub clipboard: bool,
-}
-
-#[derive(Parser, Debug)]
-pub struct ReceiveArgs {
-    /// The ticket to use to connect to the sender.
-    pub ticket: BlobTicket,
-
-    #[clap(flatten)]
-    pub common: CommonArgs,
-}
-
-/// Options to configure what is included in a [`NodeAddr`]
-#[derive(
-    Copy,
-    Clone,
-    PartialEq,
-    Eq,
-    Default,
-    Debug,
-    derive_more::Display,
-    derive_more::FromStr,
-    Serialize,
-    Deserialize,
-)]
-pub enum AddrInfoOptions {
-    /// Only the Node ID is added.
-    ///
-    /// This usually means that iroh-dns discovery is used to find address information.
-    #[default]
-    Id,
-    /// Includes the Node ID and both the relay URL, and the direct addresses.
-    RelayAndAddresses,
-    /// Includes the Node ID and the relay URL.
-    Relay,
-    /// Includes the Node ID and the direct addresses.
-    Addresses,
-}
-
-fn apply_options(addr: &mut NodeAddr, opts: AddrInfoOptions) {
-    match opts {
-        AddrInfoOptions::Id => {
-            addr.direct_addresses.clear();
-            addr.relay_url = None;
-        }
-        AddrInfoOptions::RelayAndAddresses => {
-            // nothing to do
-        }
-        AddrInfoOptions::Relay => {
-            addr.direct_addresses.clear();
-        }
-        AddrInfoOptions::Addresses => {
-            addr.relay_url = None;
-        }
-    }
-}
 
 /// Get the secret key or generate a new one.
 ///
@@ -581,7 +351,7 @@ async fn show_provide_progress(
     let connections = Arc::new(Mutex::new(BTreeMap::new()));
     let mut tasks = FuturesUnordered::new();
     loop {
-        tokio::select! {
+        select! {
             biased;
             item = recv.recv() => {
                 let Some(item) = item else {
@@ -590,7 +360,7 @@ async fn show_provide_progress(
 
                 match item {
                     ProviderMessage::ClientConnectedNotify(msg) => {
-                        let node_id = msg.node_id.map(|id| id.fmt_short().to_string()).unwrap_or_else(|| "?".to_string());
+                        let node_id = msg.endpoint_id.map(|id| id.fmt_short().to_string()).unwrap_or_else(|| "?".to_string());
                         let connection_id = msg.connection_id;
                         connections.lock().unwrap().insert(
                             connection_id,
@@ -625,7 +395,7 @@ async fn show_provide_progress(
     Ok(())
 }
 
-async fn send(args: SendArgs) -> anyhow::Result<()> {
+pub async fn send(args: SendArgs) -> anyhow::Result<()> {
     let secret_key = get_or_create_secret(args.common.verbose > 0)?;
     if args.common.show_secret {
         let secret_key = hex::encode(secret_key.to_bytes());
@@ -638,7 +408,7 @@ async fn send(args: SendArgs) -> anyhow::Result<()> {
         .secret_key(secret_key)
         .relay_mode(relay_mode.clone());
     if args.ticket_type == AddrInfoOptions::Id {
-        builder = builder.add_discovery(PkarrPublisher::n0_dns());
+        builder = builder.discovery(PkarrPublisher::n0_dns());
     }
     if let Some(addr) = args.common.magic_ipv4_addr {
         builder = builder.bind_addr_v4(addr);
@@ -726,7 +496,7 @@ async fn send(args: SendArgs) -> anyhow::Result<()> {
     let hash = temp_tag.hash();
 
     // make a ticket
-    let mut addr = router.endpoint().node_addr();
+    let mut addr = router.endpoint().addr();
     apply_options(&mut addr, args.ticket_type);
     let ticket = BlobTicket::new(addr, hash, BlobFormat::HashSeq);
     let entry_type = if path.is_file() { "file" } else { "directory" };
@@ -853,7 +623,7 @@ const TICK_MS: u64 = 250;
 
 fn make_import_overall_progress() -> ProgressBar {
     let pb = ProgressBar::hidden();
-    pb.enable_steady_tick(std::time::Duration::from_millis(TICK_MS));
+    pb.enable_steady_tick(Duration::from_millis(TICK_MS));
     pb.set_style(
         ProgressStyle::with_template(
             "{msg}{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len}",
@@ -866,7 +636,7 @@ fn make_import_overall_progress() -> ProgressBar {
 
 fn make_import_item_progress() -> ProgressBar {
     let pb = ProgressBar::hidden();
-    pb.enable_steady_tick(std::time::Duration::from_millis(TICK_MS));
+    pb.enable_steady_tick(Duration::from_millis(TICK_MS));
     pb.set_style(
         ProgressStyle::with_template("{msg}{spinner:.green} XXXX [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes}")
             .unwrap()
@@ -901,7 +671,7 @@ fn make_get_sizes_progress() -> ProgressBar {
 
 fn make_download_progress() -> ProgressBar {
     let pb = ProgressBar::hidden();
-    pb.enable_steady_tick(std::time::Duration::from_millis(TICK_MS));
+    pb.enable_steady_tick(Duration::from_millis(TICK_MS));
     pb.set_style(
         ProgressStyle::with_template("{prefix}{spinner:.green}{msg} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} {binary_bytes_per_sec}")
             .unwrap()
@@ -914,7 +684,7 @@ fn make_download_progress() -> ProgressBar {
 
 fn make_export_overall_progress() -> ProgressBar {
     let pb = ProgressBar::hidden();
-    pb.enable_steady_tick(std::time::Duration::from_millis(TICK_MS));
+    pb.enable_steady_tick(Duration::from_millis(TICK_MS));
     pb.set_style(
         ProgressStyle::with_template("{prefix}{msg}{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {human_pos}/{human_len} {per_sec}")
             .unwrap()
@@ -926,7 +696,7 @@ fn make_export_overall_progress() -> ProgressBar {
 
 fn make_export_item_progress() -> ProgressBar {
     let pb = ProgressBar::hidden();
-    pb.enable_steady_tick(std::time::Duration::from_millis(100));
+    pb.enable_steady_tick(Duration::from_millis(100));
     pb.set_style(
         ProgressStyle::with_template(
             "{msg}{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes}",
@@ -984,17 +754,17 @@ fn show_get_error(e: GetError) -> GetError {
     e
 }
 
-async fn receive(args: ReceiveArgs) -> anyhow::Result<()> {
+pub async fn receive(args: ReceiveArgs) -> anyhow::Result<()> {
     let ticket = args.ticket;
-    let addr = ticket.node_addr().clone();
+    let addr = ticket.addr().clone();
     let secret_key = get_or_create_secret(args.common.verbose > 0)?;
     let mut builder = Endpoint::builder()
         .alpns(vec![])
         .secret_key(secret_key)
         .relay_mode(args.common.relay.into());
 
-    if ticket.node_addr().relay_url.is_none() && ticket.node_addr().direct_addresses.is_empty() {
-        builder = builder.add_discovery(DnsDiscovery::n0_dns());
+    if ticket.addr().relay_urls().next().is_none() && ticket.addr().ip_addrs().next().is_none() {
+        builder = builder.discovery(DnsDiscovery::n0_dns());
     }
     if let Some(addr) = args.common.magic_ipv4_addr {
         builder = builder.bind_addr_v4(addr);
@@ -1005,7 +775,7 @@ async fn receive(args: ReceiveArgs) -> anyhow::Result<()> {
     let endpoint = builder.bind().await?;
     let dir_name = format!(".sendmer-recv-{}", ticket.hash().to_hex());
     let iroh_data_dir = std::env::current_dir()?.join(dir_name);
-    let db = iroh_blobs::store::fs::FsStore::load(&iroh_data_dir).await?;
+    let db = FsStore::load(&iroh_data_dir).await?;
     let db2 = db.clone();
     let fut = async move {
         let mut mp: MultiProgress = MultiProgress::new();
@@ -1029,7 +799,7 @@ async fn receive(args: ReceiveArgs) -> anyhow::Result<()> {
             sp.finish_and_clear();
             let total_size = sizes.iter().copied().sum::<u64>();
             let payload_size = sizes.iter().skip(2).copied().sum::<u64>();
-            let total_files = (sizes.len().saturating_sub(1)) as u64;
+            let total_files = sizes.len().saturating_sub(1) as u64;
             eprintln!(
                 "getting collection {} {} files, {}",
                 print_hash(&ticket.hash(), args.common.format),
@@ -1119,35 +889,4 @@ async fn receive(args: ReceiveArgs) -> anyhow::Result<()> {
         );
     }
     Ok(())
-}
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
-    let args = match Args::try_parse() {
-        Ok(args) => args,
-        Err(cause) => {
-            if let Some(text) = cause.get(ContextKind::InvalidSubcommand) {
-                eprintln!("{} \"{}\"\n", ErrorKind::InvalidSubcommand, text);
-                eprintln!("Available subcommands are");
-                for cmd in Args::command().get_subcommands() {
-                    eprintln!("    {}", style(cmd.get_name()).bold());
-                }
-                std::process::exit(1);
-            } else {
-                cause.exit();
-            }
-        }
-    };
-    let res = match args.command {
-        Commands::Send(args) => send(args).await,
-        Commands::Receive(args) => receive(args).await,
-    };
-    if let Err(e) = &res {
-        eprintln!("{e}");
-    }
-    match res {
-        Ok(()) => std::process::exit(0),
-        Err(_) => std::process::exit(1),
-    }
 }

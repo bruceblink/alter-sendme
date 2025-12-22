@@ -1,4 +1,5 @@
 pub mod core;
+pub mod cli;
 
 pub use core::{
     send::{start_share},
