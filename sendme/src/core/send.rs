@@ -30,10 +30,10 @@ use walkdir::WalkDir;
 use n0_future::StreamExt;
 
 fn emit_event(app_handle: &AppHandle, event_name: &str) {
-    if let Some(handle) = app_handle {
-        if let Err(e) = handle.emit_event(event_name) {
-            tracing::warn!("Failed to emit event {}: {}", event_name, e);
-        }
+    if let Some(e) = app_handle
+        .as_ref()
+        .and_then(|handle| handle.emit_event(event_name).err()) {
+        tracing::warn!("Failed to emit event {}: {}", event_name, e);
     }
 }
 
