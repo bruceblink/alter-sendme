@@ -59,8 +59,8 @@ fn emit_event_with_payload(app_handle: &AppHandle, event_name: &str, payload: &s
 
 pub async fn download(ticket_str: String, options: ReceiveOptions, app_handle: AppHandle) -> anyhow::Result<ReceiveResult> {
     let ticket = BlobTicket::from_str(&ticket_str)?;
-    
-    let addr = ticket.node_addr().clone();
+
+    let addr = ticket.addr().clone();
     
     let secret_key = get_or_create_secret()?;
     
@@ -69,8 +69,8 @@ pub async fn download(ticket_str: String, options: ReceiveOptions, app_handle: A
         .secret_key(secret_key)
         .relay_mode(options.relay_mode.clone().into());
 
-    if ticket.node_addr().relay_url.is_none() && ticket.node_addr().direct_addresses.is_empty() {
-        builder = builder.add_discovery(DnsDiscovery::n0_dns());
+    if ticket.addr().relay_urls().next().is_none() && ticket.addr().ip_addrs().next().is_none() {
+        builder = builder.discovery(DnsDiscovery::n0_dns());
     }
     if let Some(addr) = options.magic_ipv4_addr {
         builder = builder.bind_addr_v4(addr);
@@ -96,18 +96,8 @@ pub async fn download(ticket_str: String, options: ReceiveOptions, app_handle: A
         let (stats, total_files, payload_size) = if !local.is_complete() {
             // Emit receive-started event
             emit_event(&app_handle, "receive-started");
-            
-            let connection = match endpoint.connect(addr.clone(), iroh_blobs::protocol::ALPN).await {
-                Ok(conn) => conn,
-                Err(e) => {
-                    tracing::error!("Connection failed: {}", e);
-                    tracing::error!("Error details: {:?}", e);
-                    tracing::error!("Tried to connect to node: {}", addr.node_id);
-                    tracing::error!("With relay: {:?}", addr.relay_url);
-                    tracing::error!("With direct addrs: {:?}", addr.direct_addresses);
-                    return Err(anyhow::anyhow!("Connection failed: {}", e));
-                }
-            };
+
+            let connection = endpoint.connect(addr, iroh_blobs::protocol::ALPN).await?;
             
             let sizes_result = get_hash_seq_and_sizes(&connection, &hash_and_format.hash, 1024 * 1024 * 32, None).await;
             
@@ -124,7 +114,7 @@ pub async fn download(ticket_str: String, options: ReceiveOptions, app_handle: A
             // The sizes array contains: [collection_size, file1_size, file2_size, ...]
             // We skip the first element (collection metadata) but include all file sizes
             let payload_size = sizes.iter().skip(1).copied().sum::<u64>();
-            let total_files = (sizes.len().saturating_sub(1)) as u64;
+            let total_files = sizes.len().saturating_sub(1) as u64;
             
             // Emit initial progress event (0%) so frontend can display total size immediately
             emit_progress_event(&app_handle, 0, payload_size, 0.0);

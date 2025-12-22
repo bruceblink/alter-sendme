@@ -62,7 +62,7 @@ pub async fn start_share(path: PathBuf, options: SendOptions, app_handle: AppHan
         .relay_mode(relay_mode.clone());
     
     if options.ticket_type == AddrInfoOptions::Id {
-        builder = builder.add_discovery(PkarrPublisher::n0_dns());
+        builder = builder.discovery(PkarrPublisher::n0_dns());
     }
     if let Some(addr) = options.magic_ipv4_addr {
         builder = builder.bind_addr_v4(addr);
@@ -146,7 +146,7 @@ pub async fn start_share(path: PathBuf, options: SendOptions, app_handle: AppHan
     };
     let hash = temp_tag.hash();
 
-    let mut addr = router.endpoint().node_addr();
+    let mut addr = router.endpoint().addr();
     
     apply_options(&mut addr, options.ticket_type);
     
