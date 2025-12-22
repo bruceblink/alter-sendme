@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use sendme::SendResult;
+use sendmer::SendResult;
 
 /// Application state for managing sharing sessions
 #[derive(Default)]

@@ -83,7 +83,7 @@ pub async fn download(ticket_str: String, options: ReceiveOptions, app_handle: A
     
     // Use system temp directory instead of current_dir for GUI app
     // This avoids polluting user directories and OS manages cleanup automatically
-    let dir_name = format!(".sendme-recv-{}", ticket.hash().to_hex());
+    let dir_name = format!(".sendmer-recv-{}", ticket.hash().to_hex());
     let temp_base = std::env::temp_dir();
     let iroh_data_dir = temp_base.join(&dir_name);
     let db = FsStore::load(&iroh_data_dir).await?;

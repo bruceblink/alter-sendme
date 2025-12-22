@@ -13,7 +13,7 @@ use std::fs;
 #[cfg(target_os = "linux")]
 use tauri::Manager;
 
-/// Clean up any orphaned .sendme-* directories from previous runs
+/// Clean up any orphaned .sendmer-* directories from previous runs
 /// Scans both current_dir and temp_dir to handle transition and legacy directories
 fn cleanup_orphaned_directories() {
     // Scan both current_dir (legacy/transition) and temp_dir (current location)
@@ -27,7 +27,7 @@ fn cleanup_orphaned_directories() {
             for entry in entries.flatten() {
                 if let Some(name) = entry.file_name().to_str() {
                     // Clean up both send and recv directories
-                    if (name.starts_with(".sendme-send-") || name.starts_with(".sendme-recv-")) 
+                    if (name.starts_with(".sendmer-send-") || name.starts_with(".sendmer-recv-"))
                         && entry.path().is_dir() {
                         match fs::remove_dir_all(&entry.path()) {
                             Ok(_) => {}
@@ -74,7 +74,7 @@ fn main() {
             get_file_size,
         ])
         .setup(|_app| {
-            // Clean up any orphaned .sendme-* directories from previous runs
+            // Clean up any orphaned .sendmer-* directories from previous runs
             cleanup_orphaned_directories();
             
             // File drop support is enabled via dragDropEnabled: true in tauri.conf.json

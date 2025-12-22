@@ -1,5 +1,5 @@
 use crate::state::{AppStateMutex, ShareHandle};
-use sendme::{start_share, download, SendOptions, ReceiveOptions, RelayModeOption, AddrInfoOptions, AppHandle, EventEmitter};
+use sendmer::{start_share, download, SendOptions, ReceiveOptions, RelayModeOption, AddrInfoOptions, AppHandle, EventEmitter};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{State, Emitter};

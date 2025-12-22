@@ -73,7 +73,7 @@ pub async fn start_share(path: PathBuf, options: SendOptions, app_handle: AppHan
 
     let suffix = rand::rng().random::<[u8; 16]>();
     let temp_base = std::env::temp_dir();
-    let blobs_data_dir = temp_base.join(format!(".sendme-send-{}", HEXLOWER.encode(&suffix)));
+    let blobs_data_dir = temp_base.join(format!(".sendmer-send-{}", HEXLOWER.encode(&suffix)));
     if blobs_data_dir.exists() {
         anyhow::bail!(
             "can not share twice from the same directory: {}",

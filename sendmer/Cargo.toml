@@ -1,6 +1,6 @@
 [package]
-name = "sendme"
-version = "0.1.0"
+name = "sendmer"
+version = "0.1.1"
 edition.workspace = true
 authors.workspace = true
 keywords = ["scp", "sftp", "network", "p2p", "holepunching"]
@@ -13,8 +13,13 @@ description.workspace = true
 rust-version .workspace = true
 
 [lib]
-name = "sendme"
+name = "sendmer"
 crate-type = ["lib", "staticlib"]
+path = "src/lib.rs"
+
+[[bin]]
+name = "sendmer"
+path = "src/bin/sender.rs"
 
 [dependencies]
 anyhow = "1.0.75"
