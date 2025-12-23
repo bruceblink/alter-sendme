@@ -12,7 +12,6 @@ dist
 dist-ssr
 *.local
 target/
-.sendme*
 
 # Editor directories and files
 .vscode/*
