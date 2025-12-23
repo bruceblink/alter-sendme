@@ -171,6 +171,7 @@ jobs:
           git reset --hard origin/$TARGET_BRANCH   # 清空 CI runner 的工作区
           
           # 2️⃣ 版本同步
+          (cd src-tauri && npm pkg set version="$VERSION" && npm run sync-version && npm run validate-version)
           git add README.md package.json src-tauri/tauri.conf.json Cargo.toml Cargo.lock
           
           # 3️⃣ 提交修改
