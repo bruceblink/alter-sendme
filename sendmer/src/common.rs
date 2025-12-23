@@ -10,6 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::AddrInfoOptions;
 use crate::core::types::apply_options;
 use anyhow::Context;
 use clap::{
@@ -231,33 +232,6 @@ pub struct ReceiveArgs {
 
     #[clap(flatten)]
     pub common: CommonArgs,
-}
-
-/// Options to configure what is included in a [`NodeAddr`]
-#[derive(
-    Copy,
-    Clone,
-    PartialEq,
-    Eq,
-    Default,
-    Debug,
-    derive_more::Display,
-    derive_more::FromStr,
-    Serialize,
-    Deserialize,
-)]
-pub enum AddrInfoOptions {
-    /// Only the Node ID is added.
-    ///
-    /// This usually means that iroh-dns discovery is used to find address information.
-    #[default]
-    Id,
-    /// Includes the Node ID and both the relay URL, and the direct addresses.
-    RelayAndAddresses,
-    /// Includes the Node ID and the relay URL.
-    Relay,
-    /// Includes the Node ID and the direct addresses.
-    Addresses,
 }
 
 /// Get the secret key or generate a new one.
@@ -608,7 +582,7 @@ async fn show_provide_progress(
     Ok(())
 }
 
-async fn send(args: SendArgs) -> anyhow::Result<()> {
+pub async fn send(args: SendArgs) -> anyhow::Result<()> {
     let secret_key = get_or_create_secret(args.common.verbose > 0)?;
     if args.common.show_secret {
         let secret_key = hex::encode(secret_key.to_bytes());
@@ -709,7 +683,7 @@ async fn send(args: SendArgs) -> anyhow::Result<()> {
     let hash = temp_tag.hash();
 
     // make a ticket
-    let mut addr = router.endpoint().node_addr();
+    let mut addr = router.endpoint().addr();
     apply_options(&mut addr, args.ticket_type);
     let ticket = BlobTicket::new(addr, hash, BlobFormat::HashSeq);
     let entry_type = if path.is_file() { "file" } else { "directory" };
@@ -967,7 +941,7 @@ fn show_get_error(e: GetError) -> GetError {
     e
 }
 
-async fn receive(args: ReceiveArgs) -> anyhow::Result<()> {
+pub async fn receive(args: ReceiveArgs) -> anyhow::Result<()> {
     let ticket = args.ticket;
     let addr = ticket.addr().clone();
     let secret_key = get_or_create_secret(args.common.verbose > 0)?;
@@ -1102,35 +1076,4 @@ async fn receive(args: ReceiveArgs) -> anyhow::Result<()> {
         );
     }
     Ok(())
-}
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
-    let args = match Args::try_parse() {
-        Ok(args) => args,
-        Err(cause) => {
-            if let Some(text) = cause.get(ContextKind::InvalidSubcommand) {
-                eprintln!("{} \"{}\"\n", ErrorKind::InvalidSubcommand, text);
-                eprintln!("Available subcommands are");
-                for cmd in Args::command().get_subcommands() {
-                    eprintln!("    {}", style(cmd.get_name()).bold());
-                }
-                std::process::exit(1);
-            } else {
-                cause.exit();
-            }
-        }
-    };
-    let res = match args.command {
-        Commands::Send(args) => send(args).await,
-        Commands::Receive(args) => receive(args).await,
-    };
-    if let Err(e) = &res {
-        eprintln!("{e}");
-    }
-    match res {
-        Ok(()) => std::process::exit(0),
-        Err(_) => std::process::exit(1),
-    }
 }
