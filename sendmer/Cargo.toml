@@ -1,16 +1,16 @@
 [package]
 name = "sendmer"
 version = "0.1.1"
-edition.workspace = true
-authors.workspace = true
+edition = "2024"
+authors = ["likanug"]
 keywords = ["scp", "sftp", "network", "p2p", "holepunching"]
 categories = ["network-programming"]
-license.workspace = true
-repository.workspace = true
-description.workspace = true
+license = "MIT"
+repository = "https://github.com/bruceblink/alter-sendme/sendmer"
+description = "A cli tool to send directories over the network, with NAT hole punching"
 
 # Sadly this also needs to be updated in .github/workflows/ci.yml
-rust-version .workspace = true
+rust-version = "1.88"
 
 [lib]
 name = "sendmer"
