@@ -19,10 +19,10 @@ use tokio::select;
 
 // Helper function to emit events through the app handle
 fn emit_event(app_handle: &AppHandle, event_name: &str) {
-    if let Some(handle) = app_handle {
-        if let Err(e) = handle.emit_event(event_name) {
-            tracing::warn!("Failed to emit event {}: {}", event_name, e);
-        }
+    if let Some(handle) = app_handle
+        && let Err(e) = handle.emit_event(event_name)
+    {
+        tracing::warn!("Failed to emit event {}: {}", event_name, e);
     }
 }
 
@@ -52,10 +52,10 @@ fn emit_progress_event(
 
 // Helper function to emit events with payload
 fn emit_event_with_payload(app_handle: &AppHandle, event_name: &str, payload: &str) {
-    if let Some(handle) = app_handle {
-        if let Err(e) = handle.emit_event_with_payload(event_name, payload) {
-            tracing::warn!("Failed to emit event {} with payload: {}", event_name, e);
-        }
+    if let Some(handle) = app_handle
+        && let Err(e) = handle.emit_event_with_payload(event_name, payload)
+    {
+        tracing::warn!("Failed to emit event {} with payload: {}", event_name, e);
     }
 }
 
