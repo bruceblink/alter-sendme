@@ -15,7 +15,7 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            args: "--no-codesign --target universal-apple-darwin"
+            args: "--no-sign --target universal-apple-darwin"
           - os: ubuntu-22.04
             args: ""
           - os: windows-latest
