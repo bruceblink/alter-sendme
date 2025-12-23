@@ -92,7 +92,7 @@ pub async fn download(ticket_str: String, options: ReceiveOptions, app_handle: A
             // Emit receive-started event
             emit_event(&app_handle, "receive-started");
 
-            let connection = endpoint.connect(addr, protocol::ALPN).await?;
+            let connection = endpoint.connect(addr, iroh_blobs::protocol::ALPN).await?;
             
             let sizes_result = get_hash_seq_and_sizes(&connection, &hash_and_format.hash, 1024 * 1024 * 32, None).await;
             
