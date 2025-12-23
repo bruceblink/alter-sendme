@@ -15,11 +15,11 @@ pub struct SendResult {
     pub hash: String,
     pub size: u64,
     pub entry_type: String, // "file" or "directory"
-
+    
     // CRITICAL: These fields must be kept alive for the duration of the share
-    pub router: iroh::protocol::Router, // Keeps the server running and protocols active
+    pub router: iroh::protocol::Router,  // Keeps the server running and protocols active
     pub temp_tag: iroh_blobs::api::TempTag, // Prevents data from being garbage collected
-    pub blobs_data_dir: PathBuf,        // Path for cleanup when share stops
+    pub blobs_data_dir: PathBuf, // Path for cleanup when share stops
     pub _progress_handle: n0_future::task::AbortOnDropHandle<anyhow::Result<()>>, // Keeps event channel open
     pub _store: iroh_blobs::store::fs::FsStore, // Keeps the blob storage alive
 }
@@ -130,8 +130,8 @@ use anyhow::Context;
 use clap::{Parser, Subcommand};
 use iroh::{EndpointAddr, TransportAddr};
 use iroh::{RelayMode, RelayUrl};
-use iroh_blobs::Hash;
 use iroh_blobs::ticket::BlobTicket;
+use iroh_blobs::Hash;
 use std::fmt::{Display, Formatter};
 use std::net::{SocketAddrV4, SocketAddrV6};
 use std::str::FromStr;
@@ -300,10 +300,10 @@ pub struct ReceiveArgs {
 impl From<CommonArgs> for ReceiveOptions {
     fn from(common: CommonArgs) -> Self {
         ReceiveOptions {
-            relay_mode: common.relay, // RelayModeOption 类型一致
+            relay_mode: common.relay,               // RelayModeOption 类型一致
             magic_ipv4_addr: common.magic_ipv4_addr,
             magic_ipv6_addr: common.magic_ipv6_addr,
-            output_dir: None, // CLI 模式可以先不指定输出目录
+            output_dir: None,                       // CLI 模式可以先不指定输出目录
         }
     }
 }

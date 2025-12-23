@@ -9,10 +9,7 @@ mod tests {
     fn test_version_format() {
         // Ensure version follows semver format (basic check)
         assert!(!VERSION.is_empty());
-        assert!(
-            VERSION
-                .chars()
-                .all(|c| c.is_alphanumeric() || c == '.' || c == '-')
-        );
+        assert!(VERSION.chars().all(|c| c.is_alphanumeric() || c == '.' || c == '-'));
     }
 }
+

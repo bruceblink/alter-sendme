@@ -4,17 +4,22 @@ use std::{
     collections::BTreeMap,
     path::{Component, Path},
     sync::{Arc, Mutex},
-    time::Duration,
+    time::{Duration},
 };
 
-use anyhow::Result;
+use anyhow::{Result};
 use console::style;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use iroh_blobs::provider::events::{ProviderMessage, RequestUpdate};
+use indicatif::{
+    MultiProgress, ProgressBar, ProgressStyle,
+};
+use iroh_blobs::{provider::{
+    events::{ProviderMessage, RequestUpdate},
+}};
 use n0_future::{FuturesUnordered, StreamExt};
 use tokio::select;
 use tokio::sync::mpsc;
 use tracing::error;
+
 
 /// This function converts an already canonicalized path to a string.
 ///

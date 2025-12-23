@@ -19,10 +19,10 @@ fn main() {
     let package_json_path = workspace_root.join("package.json");
     if let Ok(package_json_str) = fs::read_to_string(&package_json_path) {
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&package_json_str)
-            && let Some(v) = json.get("version").and_then(|v| v.as_str())
-        {
-            version = v.to_string();
-        }
+            && let Some(v) = json.get("version").and_then(|v| v.as_str()) {
+                version = v.to_string();
+            }
+
     } else {
         eprintln!(
             "Warning: package.json not found at {}",
