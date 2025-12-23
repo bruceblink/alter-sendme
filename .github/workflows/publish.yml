@@ -165,17 +165,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 关键 1️⃣：确保在 main 上
+          # 1️⃣ 确保 main 是最新
           git fetch origin $TARGET_BRANCH
           git checkout $TARGET_BRANCH
-          git pull --rebase origin $TARGET_BRANCH
+          git reset --hard origin/$TARGET_BRANCH   # 清空 CI runner 的工作区
           
+          # 2️⃣ 版本同步
           git add README.md package.json src-tauri/tauri.conf.json Cargo.toml Cargo.lock
           
-          git commit -m "chore: sync app version to $VERSION [skip ci]" || {
-            echo "No changes to commit"
-            exit 0
-          }
+          # 3️⃣ 提交修改
+          git commit -m "chore: sync app version to $VERSION [skip ci]" || echo "No changes to commit"
           
-          # 关键 2️⃣：用 push --force-with-lease
+          # 4️⃣ 推送
           git push --force-with-lease origin $TARGET_BRANCH
