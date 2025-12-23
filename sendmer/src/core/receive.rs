@@ -239,7 +239,7 @@ pub async fn download(
 }
 
 async fn export(db: &Store, collection: Collection, output_dir: &Path) -> anyhow::Result<()> {
-    for (_i, (name, hash)) in collection.iter().enumerate() {
+    for (name, hash) in collection.iter() {
         let target = get_export_path(output_dir, name)?;
         if target.exists() {
             anyhow::bail!("target {} already exists", target.display());
