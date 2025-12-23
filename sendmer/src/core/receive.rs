@@ -1,5 +1,8 @@
 use crate::core::types::{ReceiveResult, ReceiveOptions, get_or_create_secret, AppHandle, ReceiveArgs};
-use iroh::{discovery::dns::DnsDiscovery, Endpoint, RelayMode};
+use iroh::{
+    discovery::dns::DnsDiscovery,
+    Endpoint,
+};
 use iroh_blobs::{api::{
     blobs::{ExportMode, ExportOptions, ExportProgressItem},
     remote::GetProgressItem,
@@ -305,259 +308,109 @@ fn show_get_error(e: GetError) -> GetError {
     e
 }
 
-#[derive(Debug, Clone)]
-pub enum ReceiveEvent {
-    Started {
-        total_files: u64,
-        payload_size: u64,
-    },
-    Progress {
-        received: u64,
-        total: u64,
-        speed_bps: f64,
-    },
-    Finished,
-}
-
 pub struct ReceiveCoreArgs {
     pub ticket: BlobTicket,
     pub options: ReceiveOptions,
-
-    /// 进度 / 状态回调（可选）
-    /// receive_core 只调用，不关心实现
-    pub on_event: Option<Box<dyn Fn(ReceiveEvent) + Send + Sync>>,
 }
 
 pub struct ReceiveCoreResult {
+    pub collection: Collection,
+    pub stats: Stats,
     pub total_files: u64,
     pub payload_size: u64,
-    pub stats: Stats,
     pub output_dir: PathBuf,
+    pub temp_dir: PathBuf,
 }
 
-pub async fn receive_core(
-    args: ReceiveCoreArgs,
-) -> anyhow::Result<ReceiveCoreResult> {
-    let ReceiveCoreArgs {
-        ticket,
-        options,
-        on_event,
-    } = args;
-
-    // -----------------------------
-    // 工具函数：发事件
-    // -----------------------------
-    let emit = |event: ReceiveEvent| {
-        if let Some(cb) = &on_event {
-            cb(event);
-        }
-    };
-
-    // -----------------------------
-    // endpoint / relay 配置
-    // -----------------------------
+pub async fn receive_core(args: ReceiveCoreArgs) -> anyhow::Result<ReceiveCoreResult> {
+    let ticket = args.ticket;
+    let addr = ticket.addr().clone();
     let secret_key = get_or_create_secret()?;
-    let relay_mode: RelayMode = options.relay_mode.clone().into();
-
     let mut builder = Endpoint::builder()
         .alpns(vec![])
         .secret_key(secret_key)
-        .relay_mode(relay_mode);
+        .relay_mode(args.options.relay_mode.clone().into());
 
-    let addr = ticket.addr().clone();
-
-    if addr.relay_urls().next().is_none() && addr.ip_addrs().next().is_none() {
+    if ticket.addr().relay_urls().next().is_none() && ticket.addr().ip_addrs().next().is_none() {
         builder = builder.discovery(DnsDiscovery::n0_dns());
     }
-    if let Some(addr) = options.magic_ipv4_addr {
+    if let Some(addr) = args.options.magic_ipv4_addr {
         builder = builder.bind_addr_v4(addr);
     }
-    if let Some(addr) = options.magic_ipv6_addr {
+    if let Some(addr) = args.options.magic_ipv6_addr {
         builder = builder.bind_addr_v6(addr);
     }
 
     let endpoint = builder.bind().await?;
 
-    // -----------------------------
-    // blobs 数据目录
-    // -----------------------------
-    let dir_name = format!(".sendmer-recv-{}", ticket.hash().to_hex());
-    let base = std::env::temp_dir();
-    let blobs_data_dir = base.join(&dir_name);
+    let temp_base = std::env::temp_dir();
+    let temp_dir = temp_base.join(format!(".sendmer-recv-{}", ticket.hash().to_hex()));
+    let db = FsStore::load(&temp_dir).await?;
 
-    let store = FsStore::load(&blobs_data_dir).await?;
-    let store2 = store.clone();
+    let hash_and_format = ticket.hash_and_format();
+    let local = db.remote().local(hash_and_format).await?;
 
-    // -----------------------------
-    // 下载逻辑
-    // -----------------------------
-    let fut = async move {
-        let hash_and_format = ticket.hash_and_format();
-        let local = store.remote().local(hash_and_format).await?;
+    // 下载缺失数据
+    let (stats, total_files, payload_size) = if !local.is_complete() {
+        let connection = endpoint.connect(addr, protocol::ALPN).await?;
+        let (_hash_seq, sizes) =
+            get_hash_seq_and_sizes(&connection, &hash_and_format.hash, 32 * 1024 * 1024, None)
+                .await
+                .map_err(show_get_error)?;
 
-        let (stats, total_files, payload_size) = if !local.is_complete() {
-            let connection = endpoint
-                .connect(addr, protocol::ALPN)
-                .await?;
+        let payload_size = sizes.iter().skip(1).copied().sum::<u64>();
+        let total_files = sizes.len().saturating_sub(1) as u64;
 
-            let (_hash_seq, sizes) =
-                get_hash_seq_and_sizes(
-                    &connection,
-                    &hash_and_format.hash,
-                    1024 * 1024 * 32,
-                    None,
-                ).await.map_err(show_get_error)?;
+        let get = db.remote().execute_get(connection, local.missing());
+        let mut stats = Stats::default();
+        let mut stream = get.stream();
 
-            let payload_size = sizes.iter().skip(1).copied().sum::<u64>();
-            let total_files = sizes.len().saturating_sub(1) as u64;
-
-            emit(ReceiveEvent::Started {
-                total_files,
-                payload_size,
-            });
-
-            let get = store
-                .remote()
-                .execute_get(connection, local.missing());
-
-            let mut stream = get.stream();
-            let mut stats = Stats::default();
-            let start = Instant::now();
-            let mut last_offset = 0u64;
-
-            while let Some(item) = stream.next().await {
-                match item {
-                    GetProgressItem::Progress(offset) => {
-                        if offset - last_offset >= 1_000_000 {
-                            last_offset = offset;
-                            let elapsed = start.elapsed().as_secs_f64();
-                            let speed = if elapsed > 0.0 {
-                                offset as f64 / elapsed
-                            } else {
-                                0.0
-                            };
-
-                            emit(ReceiveEvent::Progress {
-                                received: offset,
-                                total: payload_size,
-                                speed_bps: speed,
-                            });
-                        }
-                    }
-                    GetProgressItem::Done(s) => {
-                        stats = s;
-
-                        let elapsed = start.elapsed().as_secs_f64();
-                        let speed = if elapsed > 0.0 {
-                            payload_size as f64 / elapsed
-                        } else {
-                            0.0
-                        };
-
-                        emit(ReceiveEvent::Progress {
-                            received: payload_size,
-                            total: payload_size,
-                            speed_bps: speed,
-                        });
-
-                        emit(ReceiveEvent::Finished);
-                        break;
-                    }
-                    GetProgressItem::Error(err) => {
-                        anyhow::bail!(show_get_error(err));
-                    }
+        while let Some(item) = stream.next().await {
+            match item {
+                GetProgressItem::Progress(_) => {
+                    // 核心函数不处理进度
+                }
+                GetProgressItem::Done(value) => {
+                    stats = value;
+                    break;
+                }
+                GetProgressItem::Error(cause) => {
+                    anyhow::bail!(show_get_error(cause));
                 }
             }
-
-            (stats, total_files, payload_size)
-        } else {
-            emit(ReceiveEvent::Finished);
-            (Stats::default(), 0, 0)
-        };
-
-        let collection =
-            Collection::load(hash_and_format.hash, store.as_ref()).await?;
-
-        let output_dir = options.output_dir.unwrap_or_else(|| {
-            dirs::download_dir().unwrap_or_else(|| std::env::current_dir().unwrap())
-        });
-
-        export(&store, collection, &output_dir).await?;
-
-        anyhow::Ok((stats, total_files, payload_size, output_dir))
-    };
-
-    let (stats, total_files, payload_size, output_dir) = select! {
-        r = fut => r?,
-        _ = tokio::signal::ctrl_c() => {
-            store2.shutdown().await?;
-            anyhow::bail!("operation cancelled");
         }
+        (stats, total_files, payload_size)
+    } else {
+        let total_files = local.children().unwrap_or(1).saturating_sub(1);
+        let payload_size = 0;
+        (Stats::default(), total_files, payload_size)
     };
 
-    tokio::fs::remove_dir_all(&blobs_data_dir).await?;
+    // 加载集合
+    let collection = Collection::load(hash_and_format.hash, db.as_ref()).await?;
+
+    // 导出文件
+    let output_dir = args.options.output_dir.clone().unwrap_or_else(|| {
+        dirs::download_dir().unwrap_or_else(|| std::env::current_dir().unwrap())
+    });
+    export(&db, collection.clone(), &output_dir).await?;
 
     Ok(ReceiveCoreResult {
+        collection,
         stats,
         total_files,
         payload_size,
         output_dir,
+        temp_dir,
     })
 }
 
 pub async fn receive(args: ReceiveArgs) -> anyhow::Result<()> {
-    use indicatif::{ProgressBar, ProgressStyle};
-    use std::sync::{Arc, Mutex};
-
-    // 1️⃣ 进度条（用 Arc + Mutex，因为回调是 Fn）
-    let progress_bar: Arc<Mutex<Option<ProgressBar>>> =
-        Arc::new(Mutex::new(None));
-
-    let pb_ref = progress_bar.clone();
-
-    // 2️⃣ 构造 receive_core 参数
     let core_result = receive_core(ReceiveCoreArgs {
         ticket: args.ticket,
-        options: args.common.clone().into(),
-
-        on_event: Some(Box::new(move |event| {
-            match event {
-                ReceiveEvent::Started {
-                    total_files: _,
-                    payload_size,
-                } => {
-                    let pb = ProgressBar::new(payload_size);
-                    pb.set_style(
-                        ProgressStyle::with_template(
-                            "{spinner:.green} {bytes}/{total_bytes} ({bytes_per_sec}) {wide_bar}"
-                        )
-                            .unwrap()
-                            .progress_chars("=> "),
-                    );
-                    *pb_ref.lock().unwrap() = Some(pb);
-                }
-
-                ReceiveEvent::Progress {
-                    received,
-                    total: _,
-                    speed_bps,
-                } => {
-                    if let Some(pb) = pb_ref.lock().unwrap().as_ref() {
-                        pb.set_position(received);
-                        pb.set_message(format!("{}/s", HumanBytes(speed_bps as u64)));
-                    }
-                }
-
-                ReceiveEvent::Finished => {
-                    if let Some(pb) = pb_ref.lock().unwrap().take() {
-                        pb.finish_and_clear();
-                    }
-                }
-            }
-        })),
+        options: args.common.clone().into(), // 需要实现 From<CommonArgs> for ReceiveOptions
     }).await?;
 
-    // 3️⃣ verbose 输出
     if args.common.verbose > 0 {
         println!(
             "downloaded {} files, {}. took {} ({}/s)",
@@ -565,8 +418,8 @@ pub async fn receive(args: ReceiveArgs) -> anyhow::Result<()> {
             HumanBytes(core_result.payload_size),
             HumanDuration(core_result.stats.elapsed),
             HumanBytes(
-                (core_result.stats.total_bytes_read() as f64
-                    / core_result.stats.elapsed.as_secs_f64()) as u64
+                (core_result.stats.total_bytes_read() as f64 / core_result.stats.elapsed.as_secs_f64())
+                    as u64
             )
         );
     }
