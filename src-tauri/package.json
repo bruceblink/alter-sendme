@@ -1,6 +1,6 @@
 {
   "name": "AlterSendme",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "scripts": {
     "dev": "cd ../ && pnpm tauri dev",
     "build": "cd ../ && pnpm tauri dev",
