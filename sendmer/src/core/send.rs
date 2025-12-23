@@ -1,15 +1,17 @@
 use crate::core::types::{SendResult, SendOptions, AddrInfoOptions, apply_options, get_or_create_secret, AppHandle};
 use anyhow::Context;
+use data_encoding::HEXLOWER;
 use iroh::{
     discovery::pkarr::PkarrPublisher,
     Endpoint, RelayMode,
 };
 use iroh_blobs::{api::{
-    TempTag,
-}, protocol, provider::{
+    blobs::{AddPathOptions, ImportMode},
+    Store, TempTag,
+}, format::collection::Collection, protocol, provider::{
     events::{ConnectMode, EventMask, EventSender, RequestMode},
 }, store::fs::FsStore, ticket::BlobTicket, BlobFormat, BlobsProtocol, Hash};
-use n0_future::{task::AbortOnDropHandle};
+use n0_future::{task::AbortOnDropHandle, BufferedStreamExt};
 use rand::Rng;
 use std::{
     path::{Component, Path, PathBuf},
@@ -17,6 +19,8 @@ use std::{
 };
 use iroh::protocol::Router;
 use tokio::{select, sync::mpsc};
+use tracing::trace;
+use walkdir::WalkDir;
 use n0_future::StreamExt;
 use tokio::time::timeout;
 
@@ -42,65 +46,196 @@ fn emit_progress_event(app_handle: &AppHandle, bytes_transferred: u64, total_byt
     }
 }
 
-pub async fn start_share(
-    path: PathBuf,
-    options: SendOptions,
-    app_handle: AppHandle,
-) -> anyhow::Result<SendResult> {
-    // 1️⃣ 构造 EventSender，从 AppHandle 发事件
+pub async fn start_share(path: PathBuf, options: SendOptions, app_handle: AppHandle) -> anyhow::Result<SendResult> {
+    let secret_key = get_or_create_secret()?;
+    
+    let relay_mode: RelayMode = options.relay_mode.clone().into();
+    
+    let mut builder = Endpoint::builder()
+        .alpns(vec![iroh_blobs::protocol::ALPN.to_vec()])
+        .secret_key(secret_key)
+        .relay_mode(relay_mode.clone());
+    
+    if options.ticket_type == AddrInfoOptions::Id {
+        builder = builder.discovery(PkarrPublisher::n0_dns());
+    }
+    if let Some(addr) = options.magic_ipv4_addr {
+        builder = builder.bind_addr_v4(addr);
+    }
+    if let Some(addr) = options.magic_ipv6_addr {
+        builder = builder.bind_addr_v6(addr);
+    }
+
+    let suffix = rand::rng().random::<[u8; 16]>();
+    let temp_base = std::env::temp_dir();
+    let blobs_data_dir = temp_base.join(format!(".sendmer-send-{}", HEXLOWER.encode(&suffix)));
+    if blobs_data_dir.exists() {
+        anyhow::bail!(
+            "can not share twice from the same directory: {}",
+            temp_base.display(),
+        );
+    }
+    let cwd = std::env::current_dir()?;
+    if cwd.join(&path) == cwd {
+        anyhow::bail!("can not share from the current directory");
+    }
+
+    let path2 = path.clone();
+    let blobs_data_dir2 = blobs_data_dir.clone();
     let (progress_tx, progress_rx) = mpsc::channel(32);
-    let event_sender = Some(EventSender::new(
-        progress_tx,
-        EventMask {
-            connected: ConnectMode::Notify,
-            get: RequestMode::NotifyLog,
-            ..EventMask::DEFAULT
-        },
-    ));
+    let app_handle_clone = app_handle.clone();
+    let entry_type = if path.is_file() { "file" } else { "directory" };
+    let entry_type_for_progress = entry_type.to_string();
+    
+    let setup = async move {
+        let t0 = Instant::now();
+        tokio::fs::create_dir_all(&blobs_data_dir2).await?;
 
-    // 2️⃣ 构造 send_core 参数
-    let core_args = SendCoreArgs {
-        path: path.clone(),
-        options: options.clone(),
-        event_sender,
+        let endpoint = builder.bind().await?;
+        
+        let store = FsStore::load(&blobs_data_dir2).await?;
+        
+        let blobs = BlobsProtocol::new(
+            &store,
+            Some(EventSender::new(
+                progress_tx,
+                EventMask {
+                    connected: ConnectMode::Notify,
+                    get: RequestMode::NotifyLog,
+                    ..EventMask::DEFAULT
+                },
+            )),
+        );
+
+        let import_result = import(path2, blobs.store()).await?;
+        let dt = t0.elapsed();
+
+        let (ref _temp_tag, size, ref _collection) = import_result;
+        let progress_handle = n0_future::task::spawn(show_provide_progress_with_logging(
+            progress_rx,
+            app_handle_clone,
+            size,
+            entry_type_for_progress,
+        ));
+
+        let router = iroh::protocol::Router::builder(endpoint)
+            .accept(iroh_blobs::ALPN, blobs.clone())
+            .spawn();
+
+        let ep = router.endpoint();
+        tokio::time::timeout(Duration::from_secs(30), async move {
+            if !matches!(relay_mode, RelayMode::Disabled) {
+                let _ = ep.online().await;
+            }
+        })
+        .await?;
+
+        anyhow::Ok((router, import_result, dt, blobs_data_dir2, store, progress_handle))
     };
+    
+    let (router, (temp_tag, size, _collection), _dt, _blobs_data_dir, store, progress_handle) = select! {
+        x = setup => x?,
+        _ = tokio::signal::ctrl_c() => {
+            anyhow::bail!("Operation cancelled");
+        }
+    };
+    let hash = temp_tag.hash();
 
-    // 3️⃣ 调用 send_core
-    let SendCoreResult {
-        router,
-        temp_tag,
-        store,
-        blobs_data_dir,
-        size,
-        entry_type,
-        hash,
-    } = send_core(core_args).await?;
-
-    // 4️⃣ 启动进度条 / 回调显示
-    let progress_handle = n0_future::task::spawn(show_provide_progress_with_logging(
-        progress_rx,
-        app_handle,
-        size,
-        entry_type.clone(),
-    ));
-
-    // 5️⃣ 构造 ticket
     let mut addr = router.endpoint().addr();
+    
     apply_options(&mut addr, options.ticket_type);
+    
     let ticket = BlobTicket::new(addr, hash, BlobFormat::HashSeq);
 
-    // 6️⃣ 返回 SendResult
     Ok(SendResult {
         ticket: ticket.to_string(),
         hash: hash.to_hex().to_string(),
         size,
-        entry_type,
+        entry_type: entry_type.to_string(),
         router,
         temp_tag,
         blobs_data_dir,
         _progress_handle: AbortOnDropHandle::new(progress_handle),
         _store: store,
     })
+}
+
+async fn import(
+    path: PathBuf,
+    db: &Store,
+) -> anyhow::Result<(TempTag, u64, Collection)> {
+    let parallelism = num_cpus::get();
+    let path = path.canonicalize()?;
+    anyhow::ensure!(path.exists(), "path {} does not exist", path.display());
+    let root = path.parent().context("context get parent")?;
+    let files = WalkDir::new(path.clone()).into_iter();
+    let data_sources: Vec<(String, PathBuf)> = files
+        .map(|entry| {
+            let entry = entry?;
+            if !entry.file_type().is_file() {
+                return Ok(None);
+            }
+            let path = entry.into_path();
+            let relative = path.strip_prefix(root)?;
+            let name = canonicalized_path_to_string(relative, true)?;
+            anyhow::Ok(Some((name, path)))
+        })
+        .filter_map(Result::transpose)
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    
+    let mut names_and_tags = n0_future::stream::iter(data_sources)
+        .map(|(name, path)| {
+            let db = db.clone();
+            async move {
+                let import = db.add_path_with_opts(AddPathOptions {
+                    path,
+                    mode: ImportMode::TryReference,
+                    format: BlobFormat::Raw,
+                });
+                let mut stream = import.stream().await;
+                let mut item_size = 0;
+                let temp_tag = loop {
+                    let item = stream
+                        .next()
+                        .await
+                        .context("import stream ended without a tag")?;
+                    trace!("importing {name} {item:?}");
+                    match item {
+                        iroh_blobs::api::blobs::AddProgressItem::Size(size) => {
+                            item_size = size;
+                        }
+                        iroh_blobs::api::blobs::AddProgressItem::CopyProgress(_) => {
+                        }
+                        iroh_blobs::api::blobs::AddProgressItem::CopyDone => {
+                        }
+                        iroh_blobs::api::blobs::AddProgressItem::OutboardProgress(_) => {
+                        }
+                        iroh_blobs::api::blobs::AddProgressItem::Error(cause) => {
+                            anyhow::bail!("error importing {}: {}", name, cause);
+                        }
+                        iroh_blobs::api::blobs::AddProgressItem::Done(tt) => {
+                            break tt;
+                        }
+                    }
+                };
+                anyhow::Ok((name, temp_tag, item_size))
+            }
+        })
+        .buffered_unordered(parallelism)
+        .collect::<Vec<_>>()
+        .await
+        .into_iter()
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    
+    names_and_tags.sort_by(|(a, _, _), (b, _, _)| a.cmp(b));
+    let size = names_and_tags.iter().map(|(_, _, size)| *size).sum::<u64>();
+    let (collection, tags) = names_and_tags
+        .into_iter()
+        .map(|(name, tag, _)| ((name, tag.hash()), tag))
+        .unzip::<_, _, Collection, Vec<_>>();
+    let temp_tag = collection.clone().store(db).await?;
+    drop(tags);
+    Ok((temp_tag, size, collection))
 }
 
 pub fn canonicalized_path_to_string(
