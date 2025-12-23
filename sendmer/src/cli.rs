@@ -1,4 +1,5 @@
-use crate::common::{Args, Commands, receive, send};
+use crate::common::{receive, send};
+use crate::core::types::{Args, Commands};
 use clap::{
     CommandFactory, Parser,
     error::{ContextKind, ErrorKind},
