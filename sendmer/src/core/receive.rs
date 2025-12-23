@@ -1,27 +1,32 @@
-use crate::core::types::{ReceiveResult, ReceiveOptions, get_or_create_secret, AppHandle, ReceiveArgs};
+use crate::core::types::{ReceiveResult, ReceiveOptions, get_or_create_secret, AppHandle};
 use iroh::{
     discovery::dns::DnsDiscovery,
     Endpoint,
 };
-use iroh_blobs::{api::{
-    blobs::{ExportMode, ExportOptions, ExportProgressItem},
-    remote::GetProgressItem,
-    Store,
-}, format::collection::Collection, get::{request::get_hash_seq_and_sizes, GetError, Stats}, protocol, store::fs::FsStore, ticket::BlobTicket};
+use iroh_blobs::{
+    api::{
+        blobs::{ExportMode, ExportOptions, ExportProgressItem},
+        remote::GetProgressItem,
+        Store,
+    },
+    format::collection::Collection,
+    get::{request::get_hash_seq_and_sizes, GetError, Stats},
+    store::fs::FsStore,
+    ticket::BlobTicket,
+};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 use tokio::select;
 use n0_future::StreamExt;
 use std::str::FromStr;
-use indicatif::{HumanBytes, HumanDuration};
 
 // Helper function to emit events through the app handle
 fn emit_event(app_handle: &AppHandle, event_name: &str) {
-    if let Some(handle) = app_handle
-        && let Err(e) = handle.emit_event(event_name) {
+    if let Some(handle) = app_handle {
+        if let Err(e) = handle.emit_event(event_name) {
             tracing::warn!("Failed to emit event {}: {}", event_name, e);
         }
-
+    }
 }
 
 // Helper function to emit progress events with payload
@@ -45,11 +50,11 @@ fn emit_progress_event(app_handle: &AppHandle, bytes_transferred: u64, total_byt
 
 // Helper function to emit events with payload
 fn emit_event_with_payload(app_handle: &AppHandle, event_name: &str, payload: &str) {
-    if let Some(handle) = app_handle
-        && let Err(e) = handle.emit_event_with_payload(event_name, payload) {
+    if let Some(handle) = app_handle {
+        if let Err(e) = handle.emit_event_with_payload(event_name, payload) {
             tracing::warn!("Failed to emit event {} with payload: {}", event_name, e);
         }
-
+    }
 }
 
 pub async fn download(ticket_str: String, options: ReceiveOptions, app_handle: AppHandle) -> anyhow::Result<ReceiveResult> {
@@ -226,7 +231,7 @@ pub async fn download(ticket_str: String, options: ReceiveOptions, app_handle: A
 }
 
 async fn export(db: &Store, collection: Collection, output_dir: &Path) -> anyhow::Result<()> {
-    for (name, hash) in collection.iter() {
+    for (_i, (name, hash)) in collection.iter().enumerate() {
         let target = get_export_path(output_dir, name)?;
         if target.exists() {
             anyhow::bail!("target {} already exists", target.display());
@@ -306,122 +311,4 @@ fn show_get_error(e: GetError) -> GetError {
         }
     }
     e
-}
-
-pub struct ReceiveCoreArgs {
-    pub ticket: BlobTicket,
-    pub options: ReceiveOptions,
-}
-
-pub struct ReceiveCoreResult {
-    pub collection: Collection,
-    pub stats: Stats,
-    pub total_files: u64,
-    pub payload_size: u64,
-    pub output_dir: PathBuf,
-    pub temp_dir: PathBuf,
-}
-
-pub async fn receive_core(args: ReceiveCoreArgs) -> anyhow::Result<ReceiveCoreResult> {
-    let ticket = args.ticket;
-    let addr = ticket.addr().clone();
-    let secret_key = get_or_create_secret()?;
-    let mut builder = Endpoint::builder()
-        .alpns(vec![])
-        .secret_key(secret_key)
-        .relay_mode(args.options.relay_mode.clone().into());
-
-    if ticket.addr().relay_urls().next().is_none() && ticket.addr().ip_addrs().next().is_none() {
-        builder = builder.discovery(DnsDiscovery::n0_dns());
-    }
-    if let Some(addr) = args.options.magic_ipv4_addr {
-        builder = builder.bind_addr_v4(addr);
-    }
-    if let Some(addr) = args.options.magic_ipv6_addr {
-        builder = builder.bind_addr_v6(addr);
-    }
-
-    let endpoint = builder.bind().await?;
-
-    let temp_base = std::env::temp_dir();
-    let temp_dir = temp_base.join(format!(".sendmer-recv-{}", ticket.hash().to_hex()));
-    let db = FsStore::load(&temp_dir).await?;
-
-    let hash_and_format = ticket.hash_and_format();
-    let local = db.remote().local(hash_and_format).await?;
-
-    // 下载缺失数据
-    let (stats, total_files, payload_size) = if !local.is_complete() {
-        let connection = endpoint.connect(addr, protocol::ALPN).await?;
-        let (_hash_seq, sizes) =
-            get_hash_seq_and_sizes(&connection, &hash_and_format.hash, 32 * 1024 * 1024, None)
-                .await
-                .map_err(show_get_error)?;
-
-        let payload_size = sizes.iter().skip(1).copied().sum::<u64>();
-        let total_files = sizes.len().saturating_sub(1) as u64;
-
-        let get = db.remote().execute_get(connection, local.missing());
-        let mut stats = Stats::default();
-        let mut stream = get.stream();
-
-        while let Some(item) = stream.next().await {
-            match item {
-                GetProgressItem::Progress(_) => {
-                    // 核心函数不处理进度
-                }
-                GetProgressItem::Done(value) => {
-                    stats = value;
-                    break;
-                }
-                GetProgressItem::Error(cause) => {
-                    anyhow::bail!(show_get_error(cause));
-                }
-            }
-        }
-        (stats, total_files, payload_size)
-    } else {
-        let total_files = local.children().unwrap_or(1).saturating_sub(1);
-        let payload_size = 0;
-        (Stats::default(), total_files, payload_size)
-    };
-
-    // 加载集合
-    let collection = Collection::load(hash_and_format.hash, db.as_ref()).await?;
-
-    // 导出文件
-    let output_dir = args.options.output_dir.clone().unwrap_or_else(|| {
-        dirs::download_dir().unwrap_or_else(|| std::env::current_dir().unwrap())
-    });
-    export(&db, collection.clone(), &output_dir).await?;
-
-    Ok(ReceiveCoreResult {
-        collection,
-        stats,
-        total_files,
-        payload_size,
-        output_dir,
-        temp_dir,
-    })
-}
-
-pub async fn receive(args: ReceiveArgs) -> anyhow::Result<()> {
-    let core_result = receive_core(ReceiveCoreArgs {
-        ticket: args.ticket,
-        options: args.common.clone().into(), // 需要实现 From<CommonArgs> for ReceiveOptions
-    }).await?;
-
-    if args.common.verbose > 0 {
-        println!(
-            "downloaded {} files, {}. took {} ({}/s)",
-            core_result.total_files,
-            HumanBytes(core_result.payload_size),
-            HumanDuration(core_result.stats.elapsed),
-            HumanBytes(
-                (core_result.stats.total_bytes_read() as f64 / core_result.stats.elapsed.as_secs_f64())
-                    as u64
-            )
-        );
-    }
-    Ok(())
 }

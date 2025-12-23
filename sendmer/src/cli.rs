@@ -1,8 +1,7 @@
 use clap::error::{ContextKind, ErrorKind};
 use clap::{CommandFactory, Parser};
 use console::style;
-use crate::core::receive::receive;
-use crate::core::send::{send};
+use crate::core::main_reference::{receive, send};
 use crate::core::types::{Args, Commands};
 
 pub async fn run() -> anyhow::Result<()> {
