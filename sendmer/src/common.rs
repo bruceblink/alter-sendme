@@ -10,10 +10,11 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::core::types::apply_options;
 use anyhow::Context;
 use clap::{
-    error::{ContextKind, ErrorKind},
     CommandFactory, Parser, Subcommand,
+    error::{ContextKind, ErrorKind},
 };
 use console::style;
 use data_encoding::HEXLOWER;
@@ -22,29 +23,29 @@ use indicatif::{
     HumanBytes, HumanDuration, MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle,
 };
 use iroh::{
-    discovery::{dns::DnsDiscovery, pkarr::PkarrPublisher},
     Endpoint, RelayMode, RelayUrl, SecretKey,
+    discovery::{dns::DnsDiscovery, pkarr::PkarrPublisher},
 };
 use iroh_blobs::{
+    BlobFormat, BlobsProtocol, Hash,
     api::{
+        Store, TempTag,
         blobs::{
             AddPathOptions, AddProgressItem, ExportMode, ExportOptions, ExportProgressItem,
             ImportMode,
         },
         remote::GetProgressItem,
-        Store, TempTag,
     },
     format::collection::Collection,
-    get::{request::get_hash_seq_and_sizes, GetError, Stats},
+    get::{GetError, Stats, request::get_hash_seq_and_sizes},
     provider::{
         self,
         events::{ConnectMode, EventMask, EventSender, ProviderMessage, RequestUpdate},
     },
     store::fs::FsStore,
     ticket::BlobTicket,
-    BlobFormat, BlobsProtocol, Hash,
 };
-use n0_future::{task::AbortOnDropHandle, FuturesUnordered, StreamExt};
+use n0_future::{FuturesUnordered, StreamExt, task::AbortOnDropHandle};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tokio::{select, sync::mpsc};
@@ -257,24 +258,6 @@ pub enum AddrInfoOptions {
     Relay,
     /// Includes the Node ID and the direct addresses.
     Addresses,
-}
-
-fn apply_options(addr: &mut NodeAddr, opts: AddrInfoOptions) {
-    match opts {
-        AddrInfoOptions::Id => {
-            addr.direct_addresses.clear();
-            addr.relay_url = None;
-        }
-        AddrInfoOptions::RelayAndAddresses => {
-            // nothing to do
-        }
-        AddrInfoOptions::Relay => {
-            addr.direct_addresses.clear();
-        }
-        AddrInfoOptions::Addresses => {
-            addr.relay_url = None;
-        }
-    }
 }
 
 /// Get the secret key or generate a new one.
@@ -590,7 +573,7 @@ async fn show_provide_progress(
 
                 match item {
                     ProviderMessage::ClientConnectedNotify(msg) => {
-                        let node_id = msg.node_id.map(|id| id.fmt_short().to_string()).unwrap_or_else(|| "?".to_string());
+                        let node_id = msg.endpoint_id.map(|id| id.fmt_short().to_string()).unwrap_or_else(|| "?".to_string());
                         let connection_id = msg.connection_id;
                         connections.lock().unwrap().insert(
                             connection_id,
@@ -638,7 +621,7 @@ async fn send(args: SendArgs) -> anyhow::Result<()> {
         .secret_key(secret_key)
         .relay_mode(relay_mode.clone());
     if args.ticket_type == AddrInfoOptions::Id {
-        builder = builder.add_discovery(PkarrPublisher::n0_dns());
+        builder = builder.discovery(PkarrPublisher::n0_dns());
     }
     if let Some(addr) = args.common.magic_ipv4_addr {
         builder = builder.bind_addr_v4(addr);
@@ -779,9 +762,9 @@ fn handle_key_press(set_clipboard: bool, ticket: BlobTicket) {
         terminal::{disable_raw_mode, enable_raw_mode},
     };
     #[cfg(unix)]
-    use libc::{raise, SIGINT};
+    use libc::{SIGINT, raise};
     #[cfg(windows)]
-    use windows_sys::Win32::System::Console::{GenerateConsoleCtrlEvent, CTRL_C_EVENT};
+    use windows_sys::Win32::System::Console::{CTRL_C_EVENT, GenerateConsoleCtrlEvent};
 
     if set_clipboard {
         add_to_clipboard(&ticket);
@@ -986,15 +969,15 @@ fn show_get_error(e: GetError) -> GetError {
 
 async fn receive(args: ReceiveArgs) -> anyhow::Result<()> {
     let ticket = args.ticket;
-    let addr = ticket.node_addr().clone();
+    let addr = ticket.addr().clone();
     let secret_key = get_or_create_secret(args.common.verbose > 0)?;
     let mut builder = Endpoint::builder()
         .alpns(vec![])
         .secret_key(secret_key)
         .relay_mode(args.common.relay.into());
 
-    if ticket.node_addr().relay_url.is_none() && ticket.node_addr().direct_addresses.is_empty() {
-        builder = builder.add_discovery(DnsDiscovery::n0_dns());
+    if ticket.addr().relay_urls().next().is_none() && ticket.addr().ip_addrs().next().is_none() {
+        builder = builder.discovery(DnsDiscovery::n0_dns());
     }
     if let Some(addr) = args.common.magic_ipv4_addr {
         builder = builder.bind_addr_v4(addr);

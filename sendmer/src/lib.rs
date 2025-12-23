@@ -1,7 +1,11 @@
+pub mod common;
 pub mod core;
 
 pub use core::{
-    send::{start_share},
-    receive::{download},
-    types::{SendResult, ReceiveResult, SendOptions, ReceiveOptions, RelayModeOption, AddrInfoOptions, AppHandle, EventEmitter},
+    receive::download,
+    send::start_share,
+    types::{
+        AddrInfoOptions, AppHandle, EventEmitter, ReceiveOptions, ReceiveResult, RelayModeOption,
+        SendOptions, SendResult,
+    },
 };
