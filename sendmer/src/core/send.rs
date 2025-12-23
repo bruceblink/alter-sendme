@@ -1,24 +1,22 @@
-use crate::core::types::{SendResult, SendOptions, AddrInfoOptions, apply_options, get_or_create_secret, AppHandle};
+use crate::core::types::{
+    AddrInfoOptions, AppHandle, SendOptions, SendResult, apply_options, get_or_create_secret,
+};
 use anyhow::Context;
 use data_encoding::HEXLOWER;
-use iroh::{
-    discovery::pkarr::PkarrPublisher,
-    Endpoint, RelayMode,
-};
+use iroh::{Endpoint, RelayMode, discovery::pkarr::PkarrPublisher};
 use iroh_blobs::{
+    BlobFormat, BlobsProtocol,
     api::{
-        blobs::{AddPathOptions, ImportMode},
         Store, TempTag,
+        blobs::{AddPathOptions, ImportMode},
     },
     format::collection::Collection,
-    provider::{
-        events::{ConnectMode, EventMask, EventSender, RequestMode},
-    },
+    provider::events::{ConnectMode, EventMask, EventSender, RequestMode},
     store::fs::FsStore,
     ticket::BlobTicket,
-    BlobFormat, BlobsProtocol,
 };
-use n0_future::{task::AbortOnDropHandle, BufferedStreamExt};
+use n0_future::StreamExt;
+use n0_future::{BufferedStreamExt, task::AbortOnDropHandle};
 use rand::Rng;
 use std::{
     path::{Component, Path, PathBuf},
@@ -27,40 +25,49 @@ use std::{
 use tokio::{select, sync::mpsc};
 use tracing::trace;
 use walkdir::WalkDir;
-use n0_future::StreamExt;
 
 fn emit_event(app_handle: &AppHandle, event_name: &str) {
     if let Some(e) = app_handle
         .as_ref()
-        .and_then(|handle| handle.emit_event(event_name).err()) {
+        .and_then(|handle| handle.emit_event(event_name).err())
+    {
         tracing::warn!("Failed to emit event {}: {}", event_name, e);
     }
 }
 
-fn emit_progress_event(app_handle: &AppHandle, bytes_transferred: u64, total_bytes: u64, speed_bps: f64) {
+fn emit_progress_event(
+    app_handle: &AppHandle,
+    bytes_transferred: u64,
+    total_bytes: u64,
+    speed_bps: f64,
+) {
     if let Some(handle) = app_handle {
         let event_name = "transfer-progress";
-        
+
         let speed_int = (speed_bps * 1000.0) as i64;
-        
+
         let payload = format!("{}:{}:{}", bytes_transferred, total_bytes, speed_int);
-        
+
         if let Err(e) = handle.emit_event_with_payload(event_name, &payload) {
             tracing::warn!("Failed to emit progress event: {}", e);
         }
     }
 }
 
-pub async fn start_share(path: PathBuf, options: SendOptions, app_handle: AppHandle) -> anyhow::Result<SendResult> {
+pub async fn start_share(
+    path: PathBuf,
+    options: SendOptions,
+    app_handle: AppHandle,
+) -> anyhow::Result<SendResult> {
     let secret_key = get_or_create_secret()?;
-    
+
     let relay_mode: RelayMode = options.relay_mode.clone().into();
-    
+
     let mut builder = Endpoint::builder()
         .alpns(vec![iroh_blobs::protocol::ALPN.to_vec()])
         .secret_key(secret_key)
         .relay_mode(relay_mode.clone());
-    
+
     if options.ticket_type == AddrInfoOptions::Id {
         builder = builder.discovery(PkarrPublisher::n0_dns());
     }
@@ -91,15 +98,15 @@ pub async fn start_share(path: PathBuf, options: SendOptions, app_handle: AppHan
     let app_handle_clone = app_handle.clone();
     let entry_type = if path.is_file() { "file" } else { "directory" };
     let entry_type_for_progress = entry_type.to_string();
-    
+
     let setup = async move {
         let t0 = Instant::now();
         tokio::fs::create_dir_all(&blobs_data_dir2).await?;
 
         let endpoint = builder.bind().await?;
-        
+
         let store = FsStore::load(&blobs_data_dir2).await?;
-        
+
         let blobs = BlobsProtocol::new(
             &store,
             Some(EventSender::new(
@@ -135,9 +142,16 @@ pub async fn start_share(path: PathBuf, options: SendOptions, app_handle: AppHan
         })
         .await?;
 
-        anyhow::Ok((router, import_result, dt, blobs_data_dir2, store, progress_handle))
+        anyhow::Ok((
+            router,
+            import_result,
+            dt,
+            blobs_data_dir2,
+            store,
+            progress_handle,
+        ))
     };
-    
+
     let (router, (temp_tag, size, _collection), _dt, _blobs_data_dir, store, progress_handle) = select! {
         x = setup => x?,
         _ = tokio::signal::ctrl_c() => {
@@ -147,9 +161,9 @@ pub async fn start_share(path: PathBuf, options: SendOptions, app_handle: AppHan
     let hash = temp_tag.hash();
 
     let mut addr = router.endpoint().addr();
-    
+
     apply_options(&mut addr, options.ticket_type);
-    
+
     let ticket = BlobTicket::new(addr, hash, BlobFormat::HashSeq);
 
     Ok(SendResult {
@@ -165,10 +179,7 @@ pub async fn start_share(path: PathBuf, options: SendOptions, app_handle: AppHan
     })
 }
 
-async fn import(
-    path: PathBuf,
-    db: &Store,
-) -> anyhow::Result<(TempTag, u64, Collection)> {
+async fn import(path: PathBuf, db: &Store) -> anyhow::Result<(TempTag, u64, Collection)> {
     let parallelism = num_cpus::get();
     let path = path.canonicalize()?;
     anyhow::ensure!(path.exists(), "path {} does not exist", path.display());
@@ -187,7 +198,7 @@ async fn import(
         })
         .filter_map(Result::transpose)
         .collect::<anyhow::Result<Vec<_>>>()?;
-    
+
     let mut names_and_tags = n0_future::stream::iter(data_sources)
         .map(|(name, path)| {
             let db = db.clone();
@@ -209,12 +220,9 @@ async fn import(
                         iroh_blobs::api::blobs::AddProgressItem::Size(size) => {
                             item_size = size;
                         }
-                        iroh_blobs::api::blobs::AddProgressItem::CopyProgress(_) => {
-                        }
-                        iroh_blobs::api::blobs::AddProgressItem::CopyDone => {
-                        }
-                        iroh_blobs::api::blobs::AddProgressItem::OutboardProgress(_) => {
-                        }
+                        iroh_blobs::api::blobs::AddProgressItem::CopyProgress(_) => {}
+                        iroh_blobs::api::blobs::AddProgressItem::CopyDone => {}
+                        iroh_blobs::api::blobs::AddProgressItem::OutboardProgress(_) => {}
                         iroh_blobs::api::blobs::AddProgressItem::Error(cause) => {
                             anyhow::bail!("error importing {}: {}", name, cause);
                         }
@@ -231,7 +239,7 @@ async fn import(
         .await
         .into_iter()
         .collect::<anyhow::Result<Vec<_>>>()?;
-    
+
     names_and_tags.sort_by(|(a, _, _), (b, _, _)| a.cmp(b));
     let size = names_and_tags.iter().map(|(_, _, size)| *size).sum::<u64>();
     let (collection, tags) = names_and_tags
@@ -290,24 +298,24 @@ async fn show_provide_progress_with_logging(
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use tokio::sync::Mutex;
-    
+
     let mut tasks = FuturesUnordered::new();
-    
+
     #[derive(Clone)]
     struct TransferState {
         start_time: Instant,
         total_size: u64,
     }
-    
-    let transfer_states: Arc<Mutex<std::collections::HashMap<(u64, u64), TransferState>>> = 
+
+    let transfer_states: Arc<Mutex<std::collections::HashMap<(u64, u64), TransferState>>> =
         Arc::new(Mutex::new(std::collections::HashMap::new()));
-    
+
     let active_requests = Arc::new(AtomicUsize::new(0));
     let completed_requests = Arc::new(AtomicUsize::new(0));
     let has_emitted_started = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let has_any_transfer = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let last_request_time: Arc<Mutex<Option<Instant>>> = Arc::new(Mutex::new(None));
-    
+
     loop {
         select! {
             biased;
@@ -324,12 +332,12 @@ async fn show_provide_progress_with_logging(
                     iroh_blobs::provider::events::ProviderMessage::GetRequestReceivedNotify(msg) => {
                         let connection_id = msg.connection_id;
                         let request_id = msg.request_id;
-                        
+
                         active_requests.fetch_add(1, Ordering::SeqCst);
-                        
+
                         let mut last_time = last_request_time.lock().await;
                         *last_time = Some(Instant::now());
-                        
+
                         let app_handle_task = app_handle.clone();
                         let transfer_states_task = transfer_states.clone();
                         let active_requests_task = active_requests.clone();
@@ -338,12 +346,12 @@ async fn show_provide_progress_with_logging(
                         let has_any_transfer_task = has_any_transfer.clone();
                         let last_request_time_task = last_request_time.clone();
                         let entry_type_task = entry_type.clone();
-                        
+
                         let mut rx = msg.rx;
                         tasks.push(async move {
                             let mut transfer_started = false;
                             let mut request_completed = false;
-                            
+
                             while let Ok(Some(update)) = rx.recv().await {
                                 match update {
                                     iroh_blobs::provider::events::RequestUpdate::Started(_m) => {
@@ -355,11 +363,11 @@ async fn show_provide_progress_with_logging(
                                                     total_size: total_file_size,
                                                 }
                                             );
-                                            
+
                                             if !has_emitted_started_task.swap(true, Ordering::SeqCst) {
                                                 emit_event(&app_handle_task, "transfer-started");
                                             }
-                                            
+
                                             transfer_started = true;
                                             has_any_transfer_task.store(true, Ordering::SeqCst);
                                         }
@@ -372,7 +380,7 @@ async fn show_provide_progress_with_logging(
                                             transfer_started = true;
                                             has_any_transfer_task.store(true, Ordering::SeqCst);
                                         }
-                                        
+
                                         if let Some(state) = transfer_states_task.lock().await.get(&(connection_id, request_id)) {
                                             let elapsed = state.start_time.elapsed().as_secs_f64();
                                             let speed_bps = if elapsed > 0.0 {
@@ -380,7 +388,7 @@ async fn show_provide_progress_with_logging(
                                             } else {
                                                 0.0
                                             };
-                                            
+
                                             emit_progress_event(&app_handle_task, m.end_offset, state.total_size, speed_bps);
                                         }
                                     }
@@ -388,31 +396,31 @@ async fn show_provide_progress_with_logging(
                                         if transfer_started && !request_completed {
                                             transfer_states_task.lock().await.remove(&(connection_id, request_id));
                                             request_completed = true;
-                                            
+
                                             let completed = completed_requests_task.fetch_add(1, Ordering::SeqCst) + 1;
                                             let active = active_requests_task.load(Ordering::SeqCst);
-                                            
+
                                             // For directories, require at least 2 completed requests
                                             // to avoid false completion from metadata transfer
                                             let min_required = if entry_type_task == "directory" { 2 } else { 1 };
-                                            
-                                            if completed >= active 
+
+                                            if completed >= active
                                                 && completed >= min_required
                                                 && has_any_transfer_task.load(Ordering::SeqCst) {
                                                 let active_before_wait = active;
-                                                
+
                                                 tokio::time::sleep(Duration::from_millis(500)).await;
-                                                
+
                                                 let completed_after = completed_requests_task.load(Ordering::SeqCst);
                                                 let active_after = active_requests_task.load(Ordering::SeqCst);
-                                                
+
                                                 let new_requests_arrived = active_after > active_before_wait;
-                                                
+
                                                 let has_active_transfers = {
                                                     let states = transfer_states_task.lock().await;
                                                     !states.is_empty()
                                                 };
-                                                
+
                                                 let last_request_recent = {
                                                     let last_time = last_request_time_task.lock().await;
                                                     if let Some(time) = *last_time {
@@ -421,11 +429,11 @@ async fn show_provide_progress_with_logging(
                                                         false
                                                     }
                                                 };
-                                                
-                                                if completed_after >= active_after 
+
+                                                if completed_after >= active_after
                                                     && completed_after >= min_required
                                                     && !new_requests_arrived
-                                                    && !has_active_transfers 
+                                                    && !has_active_transfers
                                                     && !last_request_recent {
                                                     emit_event(&app_handle_task, "transfer-completed");
                                                 }
@@ -433,15 +441,15 @@ async fn show_provide_progress_with_logging(
                                         }
                                     }
                                     iroh_blobs::provider::events::RequestUpdate::Aborted(_m) => {
-                                        tracing::warn!("Request aborted: conn {} req {}", 
+                                        tracing::warn!("Request aborted: conn {} req {}",
                                             connection_id, request_id);
                                         if transfer_started && !request_completed {
                                             transfer_states_task.lock().await.remove(&(connection_id, request_id));
                                             request_completed = true;
-                                            
+
                                             let completed = completed_requests_task.fetch_add(1, Ordering::SeqCst) + 1;
                                             let active = active_requests_task.load(Ordering::SeqCst);
-                                            
+
                                             if completed >= active {
                                                 emit_event(&app_handle_task, "transfer-failed");
                                             }
@@ -449,32 +457,32 @@ async fn show_provide_progress_with_logging(
                                     }
                                 }
                             }
-                            
+
                             if transfer_started && !request_completed {
                                 let completed = completed_requests_task.fetch_add(1, Ordering::SeqCst) + 1;
                                 let active = active_requests_task.load(Ordering::SeqCst);
-                                
+
                                 // For directories, require at least 2 completed requests
                                 // to avoid false completion from metadata transfer
                                 let min_required = if entry_type_task == "directory" { 2 } else { 1 };
-                                
-                                if completed >= active 
+
+                                if completed >= active
                                     && completed >= min_required
                                     && has_any_transfer_task.load(Ordering::SeqCst) {
                                     let active_before_wait = active;
-                                    
+
                                     tokio::time::sleep(Duration::from_millis(500)).await;
-                                    
+
                                     let completed_after = completed_requests_task.load(Ordering::SeqCst);
                                     let active_after = active_requests_task.load(Ordering::SeqCst);
-                                    
+
                                     let new_requests_arrived = active_after > active_before_wait;
-                                    
+
                                     let has_active_transfers = {
                                         let states = transfer_states_task.lock().await;
                                         !states.is_empty()
                                     };
-                                    
+
                                     let last_request_recent = {
                                         let last_time = last_request_time_task.lock().await;
                                         if let Some(time) = *last_time {
@@ -483,11 +491,11 @@ async fn show_provide_progress_with_logging(
                                             false
                                         }
                                     };
-                                    
-                                    if completed_after >= active_after 
+
+                                    if completed_after >= active_after
                                         && completed_after >= min_required
                                         && !new_requests_arrived
-                                        && !has_active_transfers 
+                                        && !has_active_transfers
                                         && !last_request_recent {
                                         emit_event(&app_handle_task, "transfer-completed");
                                     }
@@ -503,22 +511,21 @@ async fn show_provide_progress_with_logging(
             }
         }
     }
-    
-    while tasks.next().await.is_some() {
-    }
-    
+
+    while tasks.next().await.is_some() {}
+
     if has_any_transfer.load(Ordering::SeqCst) {
         let completed = completed_requests.load(Ordering::SeqCst);
         let active = active_requests.load(Ordering::SeqCst);
-        
+
         // For directories, require at least 2 completed requests
         // to avoid false completion from metadata transfer
         let min_required = if entry_type == "directory" { 2 } else { 1 };
-        
+
         if completed >= active && completed >= min_required && completed > 0 {
             emit_event(&app_handle, "transfer-completed");
         }
     }
-    
+
     Ok(())
 }

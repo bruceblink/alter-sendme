@@ -13,10 +13,7 @@ use std::{
 use crate::AddrInfoOptions;
 use crate::core::types::apply_options;
 use anyhow::Context;
-use clap::{
-    CommandFactory, Parser, Subcommand,
-    error::{ContextKind, ErrorKind},
-};
+use clap::{Parser, Subcommand};
 use console::style;
 use data_encoding::HEXLOWER;
 use futures_buffered::BufferedStreamExt;
@@ -48,9 +45,8 @@ use iroh_blobs::{
 };
 use n0_future::{FuturesUnordered, StreamExt, task::AbortOnDropHandle};
 use rand::Rng;
-use serde::{Deserialize, Serialize};
 use tokio::{select, sync::mpsc};
-use tracing::{error, trace};
+use tracing::error;
 use walkdir::WalkDir;
 
 /// Send a file or directory between two machines, using blake3 verified streaming.
@@ -538,7 +534,7 @@ async fn show_provide_progress(
     let connections = Arc::new(Mutex::new(BTreeMap::new()));
     let mut tasks = FuturesUnordered::new();
     loop {
-        tokio::select! {
+        select! {
             biased;
             item = recv.recv() => {
                 let Some(item) = item else {
@@ -810,7 +806,7 @@ const TICK_MS: u64 = 250;
 
 fn make_import_overall_progress() -> ProgressBar {
     let pb = ProgressBar::hidden();
-    pb.enable_steady_tick(std::time::Duration::from_millis(TICK_MS));
+    pb.enable_steady_tick(Duration::from_millis(TICK_MS));
     pb.set_style(
         ProgressStyle::with_template(
             "{msg}{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len}",
@@ -823,7 +819,7 @@ fn make_import_overall_progress() -> ProgressBar {
 
 fn make_import_item_progress() -> ProgressBar {
     let pb = ProgressBar::hidden();
-    pb.enable_steady_tick(std::time::Duration::from_millis(TICK_MS));
+    pb.enable_steady_tick(Duration::from_millis(TICK_MS));
     pb.set_style(
         ProgressStyle::with_template("{msg}{spinner:.green} XXXX [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes}")
             .unwrap()
@@ -858,7 +854,7 @@ fn make_get_sizes_progress() -> ProgressBar {
 
 fn make_download_progress() -> ProgressBar {
     let pb = ProgressBar::hidden();
-    pb.enable_steady_tick(std::time::Duration::from_millis(TICK_MS));
+    pb.enable_steady_tick(Duration::from_millis(TICK_MS));
     pb.set_style(
         ProgressStyle::with_template("{prefix}{spinner:.green}{msg} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} {binary_bytes_per_sec}")
             .unwrap()
@@ -871,7 +867,7 @@ fn make_download_progress() -> ProgressBar {
 
 fn make_export_overall_progress() -> ProgressBar {
     let pb = ProgressBar::hidden();
-    pb.enable_steady_tick(std::time::Duration::from_millis(TICK_MS));
+    pb.enable_steady_tick(Duration::from_millis(TICK_MS));
     pb.set_style(
         ProgressStyle::with_template("{prefix}{msg}{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {human_pos}/{human_len} {per_sec}")
             .unwrap()
@@ -883,7 +879,7 @@ fn make_export_overall_progress() -> ProgressBar {
 
 fn make_export_item_progress() -> ProgressBar {
     let pb = ProgressBar::hidden();
-    pb.enable_steady_tick(std::time::Duration::from_millis(100));
+    pb.enable_steady_tick(Duration::from_millis(100));
     pb.set_style(
         ProgressStyle::with_template(
             "{msg}{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes}",
@@ -962,7 +958,7 @@ pub async fn receive(args: ReceiveArgs) -> anyhow::Result<()> {
     let endpoint = builder.bind().await?;
     let dir_name = format!(".sendmer-recv-{}", ticket.hash().to_hex());
     let iroh_data_dir = std::env::current_dir()?.join(dir_name);
-    let db = iroh_blobs::store::fs::FsStore::load(&iroh_data_dir).await?;
+    let db = FsStore::load(&iroh_data_dir).await?;
     let db2 = db.clone();
     let fut = async move {
         let mut mp: MultiProgress = MultiProgress::new();
@@ -986,7 +982,7 @@ pub async fn receive(args: ReceiveArgs) -> anyhow::Result<()> {
             sp.finish_and_clear();
             let total_size = sizes.iter().copied().sum::<u64>();
             let payload_size = sizes.iter().skip(2).copied().sum::<u64>();
-            let total_files = (sizes.len().saturating_sub(1)) as u64;
+            let total_files = sizes.len().saturating_sub(1) as u64;
             eprintln!(
                 "getting collection {} {} files, {}",
                 print_hash(&ticket.hash(), args.common.format),
@@ -1042,11 +1038,12 @@ pub async fn receive(args: ReceiveArgs) -> anyhow::Result<()> {
                 println!("    {} {name}", print_hash(hash, args.common.format));
             }
         }
-        if let Some((name, _)) = collection.iter().next() {
-            if let Some(first) = name.split('/').next() {
-                println!("exporting to {first}");
-            }
+        if let Some((name, _)) = collection.iter().next()
+            && let Some(first) = name.split('/').next()
+        {
+            println!("exporting to {first}");
         }
+
         export(&db, collection, &mut mp).await?;
         anyhow::Ok((total_files, payload_size, stats))
     };
