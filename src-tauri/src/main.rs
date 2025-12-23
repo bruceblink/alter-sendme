@@ -30,7 +30,7 @@ fn cleanup_orphaned_directories() {
                     if (name.starts_with(".sendmer-send-") || name.starts_with(".sendmer-recv-"))
                         && entry.path().is_dir()
                     {
-                        match fs::remove_dir_all(&entry.path()) {
+                        match fs::remove_dir_all(entry.path()) {
                             Ok(_) => {}
                             Err(e) => {
                                 tracing::warn!(

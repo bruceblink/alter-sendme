@@ -48,10 +48,10 @@ pub async fn get_file_size(path: String) -> Result<u64, String> {
         for entry in walkdir::WalkDir::new(&path) {
             match entry {
                 Ok(entry) => {
-                    if entry.file_type().is_file() {
-                        if let Ok(metadata) = entry.metadata() {
-                            total_size += metadata.len();
-                        }
+                    if entry.file_type().is_file()
+                        && let Ok(metadata) = entry.metadata()
+                    {
+                        total_size += metadata.len();
                     }
                 }
                 Err(e) => {
@@ -120,9 +120,7 @@ pub async fn stop_sharing(state: State<'_, AppStateMutex>) -> Result<(), String>
 
     if let Some(mut share) = app_state.current_share.take() {
         // Explicitly clean up the share session
-        if let Err(e) = share.stop().await {
-            return Err(e);
-        }
+        share.stop().await?
     }
 
     Ok(())
