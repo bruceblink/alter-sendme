@@ -42,6 +42,7 @@ use n0_future::{FuturesUnordered, StreamExt, task::AbortOnDropHandle};
 use rand::Rng;
 use tokio::{select, sync::mpsc};
 use tracing::error;
+use tracing::log::trace;
 use walkdir::WalkDir;
 
 /// Send a file or directory between two machines, using blake3 verified streaming.
@@ -362,20 +363,44 @@ async fn show_provide_progress(
                     break;
                 };
 
+                trace!("got event {item:?}");
                 match item {
                     ProviderMessage::ClientConnectedNotify(msg) => {
-                        let node_id = msg.endpoint_id.map(|id| id.fmt_short().to_string()).unwrap_or_else(|| "?".to_string());
-                        let connection_id = msg.connection_id;
-                        connections.lock().unwrap().insert(
-                            connection_id,
+                        let node_id = msg
+                            .endpoint_id
+                            .map(|id| id.fmt_short().to_string())
+                            .unwrap_or_else(|| "?".to_string());
+
+                        let mut guard = match connections.lock() {
+                            Ok(g) => g,
+                            Err(e) => {
+                                tracing::warn!("connections mutex poisoned: {e}");
+                                continue;
+                            }
+                        };
+
+                        guard.insert(
+                            msg.connection_id,
                             PerConnectionProgress {
-                                requests: BTreeMap::new(),
                                 node_id,
+                                requests: BTreeMap::new(),
+
                             },
                         );
                     }
                     ProviderMessage::ConnectionClosed(msg) => {
-                        if let Some(connection) = connections.lock().unwrap().remove(&msg.connection_id) {
+                        let connection = {
+                            let mut guard = match connections.lock() {
+                                Ok(g) => g,
+                                Err(e) => {
+                                    tracing::warn!("connections mutex poisoned: {e}");
+                                    continue;
+                                }
+                            };
+                            guard.remove(&msg.connection_id)
+                        };
+
+                        if let Some(connection) = connection {
                             for pb in connection.requests.values() {
                                 pb.finish_and_clear();
                                 mp.remove(pb);
@@ -383,11 +408,16 @@ async fn show_provide_progress(
                         }
                     }
                     ProviderMessage::GetRequestReceivedNotify(msg) => {
-                        let request_id = msg.request_id;
-                        let connection_id = msg.connection_id;
                         let connections = connections.clone();
                         let mp = mp.clone();
-                        tasks.push(per_request_progress(mp, connection_id, request_id, connections, msg.rx));
+
+                        tasks.push(per_request_progress(
+                            mp,
+                            msg.connection_id,
+                            msg.request_id,
+                            connections,
+                            msg.rx,
+                        ));
                     }
                     _ => {}
                 }
