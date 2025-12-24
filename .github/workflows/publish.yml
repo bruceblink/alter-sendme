@@ -152,30 +152,3 @@ jobs:
           releaseDraft: true
           includeUpdaterJson: true
           args: ${{ matrix.args }}
-
-      # -----------------------------
-      # Commit synced version after build + release
-      # -----------------------------
-      - name: Commit synced version
-        shell: bash
-        run: |
-          VERSION="${GITHUB_REF#refs/tags/v}"
-          TARGET_BRANCH="main"
-          
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # 1️⃣ 确保 main 是最新
-          git fetch origin $TARGET_BRANCH
-          git checkout $TARGET_BRANCH
-          git reset --hard origin/$TARGET_BRANCH   # 清空 CI runner 的工作区
-          
-          # 2️⃣ 版本同步
-          (cd src-tauri && npm pkg set version="$VERSION" && npm run sync-version && npm run validate-version)
-          git add README.md package.json src-tauri/tauri.conf.json Cargo.toml Cargo.lock
-          
-          # 3️⃣ 提交修改
-          git commit -m "chore: sync app version to $VERSION [skip ci]" || echo "No changes to commit"
-          
-          # 4️⃣ 推送
-          git push --force-with-lease origin $TARGET_BRANCH
