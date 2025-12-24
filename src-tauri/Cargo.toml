@@ -30,8 +30,8 @@ tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 walkdir.workspace = true
-sendmer = {path = "../sendmer" }
 serde_json.workspace = true
+sendmer.workspace = true
 
 [features]
 default = ["custom-protocol"]
