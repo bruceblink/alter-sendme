@@ -1,4 +1,5 @@
 use crate::state::{AppStateMutex, ShareHandle};
+use sendmer::core::types::TransferEvent;
 use sendmer::{
     AddrInfoOptions, AppHandle, EventEmitter, ReceiveOptions, RelayModeOption, SendOptions,
     download, start_share,
@@ -13,16 +14,43 @@ struct TauriEventEmitter {
 }
 
 impl EventEmitter for TauriEventEmitter {
-    fn emit_event(&self, event_name: &str) -> Result<(), String> {
-        self.app_handle
-            .emit(event_name, ())
-            .map_err(|e| e.to_string())
-    }
+    fn emit(&self, event: &TransferEvent) {
+        let event_name = event.event_name();
 
-    fn emit_event_with_payload(&self, event_name: &str, payload: &str) -> Result<(), String> {
-        self.app_handle
-            .emit(event_name, payload)
-            .map_err(|e| e.to_string())
+        match event {
+            TransferEvent::Progress {
+                processed,
+                total,
+                speed,
+                ..
+            } => {
+                let payload = serde_json::json!({
+                    "processed": processed,
+                    "total": total,
+                    "speed": speed,
+                });
+                let _ = self.app_handle.emit(&event_name, payload);
+            }
+
+            TransferEvent::Failed { message, .. } => {
+                let payload = serde_json::json!({
+                    "error": message,
+                });
+
+                let _ = self.app_handle.emit(&event_name, payload);
+            }
+
+            TransferEvent::FileNames { file_names, .. } => {
+                let payload = serde_json::json!(file_names);
+                let _ = self.app_handle.emit(&event_name, payload);
+            }
+
+            // started / completed 没有 payload
+            _ => {
+                println!("event_name: {:?}", event_name);
+                let _ = self.app_handle.emit(&event_name, ());
+            }
+        }
     }
 }
 
