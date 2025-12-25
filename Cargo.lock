@@ -5066,7 +5066,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "rustix",
-    "windows 0.61.3",
+    "windows 0.62.2",
 ]
 
 [[package]]
@@ -5475,9 +5475,9 @@ checksum = "cd0b0ec5f1c1ca621c432a25813d8d60c88abe6d3e08a3eb9cf37d97a0fe3d73"
 
 [[package]]
 name = "sendmer"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6847d774b4a8654a654da30667621eb3805c04a6e08469c9e704c45edfacef7"
+checksum = "3e263c38fe4f1829ce5be8c3ab7523d51e9fef64fc1008af1fdea1ddf122b1ce"
 dependencies = [
  "anyhow",
     "async-trait",
