@@ -139,41 +139,35 @@ export function useReceiver(): UseReceiverReturn {
     let unlistenFileNames: UnlistenFn | undefined
 
     const setupListeners = async () => {
-      unlistenStart = await listen('receive-started', () => {
+        unlistenStart = await listen('transfer:receiver:started', () => {
         setIsTransporting(true)
         setIsCompleted(false)
         setTransferStartTime(Date.now())
         setTransferProgress(null)
       })
 
-      unlistenProgress = await listen('receive-progress', (event: any) => {
-        try {
-          const payload = event.payload as string
-          const parts = payload.split(':')
-          
-          if (parts.length === 3) {
-            const bytesTransferred = parseInt(parts[0], 10)
-            const totalBytes = parseInt(parts[1], 10)
-            const speedInt = parseInt(parts[2], 10)
-            const speedBps = speedInt / 1000.0
-            const percentage = totalBytes > 0 ? (bytesTransferred / totalBytes) * 100 : 0
-            
-            setTransferProgress({
-              bytesTransferred,
-              totalBytes,
-              speedBps,
-              percentage
-            })
-          }
-        } catch (error) {
-          console.error('Failed to parse progress event:', error)
-        }
-      })
+        unlistenProgress = await listen('transfer:receiver:progress', (event: any) => {
+            try {
+                const progress = event.payload // 已经是对象，不需要 JSON.parse
+                const bytesTransferred = Number(progress.processed)
+                const totalBytes = Number(progress.total)
+                const speedBps = Number(progress.speed)
+                const percentage = totalBytes > 0 ? (bytesTransferred / totalBytes) * 100 : 0
 
-      unlistenFileNames = await listen('receive-file-names', (event: any) => {
+                setTransferProgress({
+                    bytesTransferred,
+                    totalBytes,
+                    speedBps,
+                    percentage
+                })
+            } catch (error) {
+                console.error('Failed to parse progress event:', error)
+            }
+        })
+
+        unlistenFileNames = await listen('transfer:receiver:file-names', (event: any) => {
         try {
-          const payload = event.payload as string
-          const names = JSON.parse(payload) as string[]
+            const names = event.payload as string[]
           
           setFileNames(names)
           fileNamesRef.current = names
@@ -182,7 +176,7 @@ export function useReceiver(): UseReceiverReturn {
         }
       })
 
-      unlistenComplete = await listen('receive-completed', () => {
+        unlistenComplete = await listen('transfer:receiver:completed', () => {
         setIsTransporting(false)
         setIsCompleted(true)
         setTransferProgress(null)

@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { listen, UnlistenFn } from '@tauri-apps/api/event'
-import { useTranslation } from '@/i18n'
-import type { AlertDialogState, AlertType, TransferMetadata, TransferProgress } from '@/types/sender'
+import {useEffect, useRef, useState} from 'react'
+import {invoke} from '@tauri-apps/api/core'
+import {listen, UnlistenFn} from '@tauri-apps/api/event'
+import {useTranslation} from '@/i18n'
+import type {AlertDialogState, AlertType, TransferMetadata, TransferProgress} from '@/types/sender'
 
 export interface UseSenderReturn {
   isSharing: boolean
@@ -70,7 +70,7 @@ export function useSender(): UseSenderReturn {
     let unlistenFailed: UnlistenFn | undefined
 
     const setupListeners = async () => {
-      unlistenStart = await listen('transfer-started', () => {
+        unlistenStart = await listen('transfer:sender:started', () => {
         transferStartTimeRef.current = Date.now()
         isCompletedRef.current = false
         latestProgressRef.current = null
@@ -92,31 +92,26 @@ export function useSender(): UseSenderReturn {
         }, 50)
       })
 
-      unlistenProgress = await listen('transfer-progress', (event: any) => {
-        try {
-          const payload = event.payload as string
-          const parts = payload.split(':')
-          
-          if (parts.length === 3) {
-            const bytesTransferred = parseInt(parts[0], 10)
-            const totalBytes = parseInt(parts[1], 10)
-            const speedInt = parseInt(parts[2], 10)
-            const speedBps = speedInt / 1000.0
-            const percentage = totalBytes > 0 ? (bytesTransferred / totalBytes) * 100 : 0
-            
-            latestProgressRef.current = {
-              bytesTransferred,
-              totalBytes,
-              speedBps,
-              percentage
+        unlistenProgress = await listen('transfer:sender:progress', (event: any) => {
+            try {
+                const progress = event.payload
+                const bytesTransferred = Number(progress.processed)
+                const totalBytes = Number(progress.total)
+                const speedBps = Number(progress.speed)
+                const percentage = totalBytes > 0 ? (bytesTransferred / totalBytes) * 100 : 0
+
+                latestProgressRef.current = {
+                    bytesTransferred,
+                    totalBytes,
+                    speedBps,
+                    percentage
+                }
+            } catch (error) {
+                console.error('Failed to parse progress event:', error)
             }
-          }
-        } catch (error) {
-          console.error('Failed to parse progress event:', error)
-        }
       })
 
-      unlistenComplete = await listen('transfer-completed', async () => {
+        unlistenComplete = await listen('transfer:sender:completed', async () => {
         if (wasManuallyStoppedRef.current) {
           return
         }
@@ -178,7 +173,7 @@ export function useSender(): UseSenderReturn {
         }
       })
 
-      unlistenFailed = await listen('transfer-failed', async () => {
+        unlistenFailed = await listen('transfer:sender:failed', async () => {
         if (wasManuallyStoppedRef.current) {
           return
         }
