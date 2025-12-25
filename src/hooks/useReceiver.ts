@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { listen, UnlistenFn } from '@tauri-apps/api/event'
-import { open } from '@tauri-apps/plugin-dialog'
-import { downloadDir, join } from '@tauri-apps/api/path'
-import { revealItemInDir } from '@tauri-apps/plugin-opener'
-import { useTranslation } from '@/i18n'
-import type { AlertDialogState, AlertType, TransferMetadata, TransferProgress } from '@/types/sender'
+import {useEffect, useRef, useState} from 'react'
+import {invoke} from '@tauri-apps/api/core'
+import {listen, UnlistenFn} from '@tauri-apps/api/event'
+import {open} from '@tauri-apps/plugin-dialog'
+import {downloadDir, join} from '@tauri-apps/api/path'
+import {revealItemInDir} from '@tauri-apps/plugin-opener'
+import {useTranslation} from '@/i18n'
+import type {AlertDialogState, AlertType, TransferMetadata, TransferProgress} from '@/types/sender'
 
 export interface UseReceiverReturn {
   ticket: string
@@ -129,7 +129,7 @@ export function useReceiver(): UseReceiverReturn {
         setSavePath('')
       }
     }
-    initializeSavePath()
+      void initializeSavePath()
   }, [])
 
   useEffect(() => {
@@ -323,7 +323,7 @@ export function useReceiver(): UseReceiverReturn {
       }
     }
 
-    revealDownloadFolder()
+      void revealDownloadFolder()
   }, [isCompleted, savePath, showAlert, t])
 
   return {
