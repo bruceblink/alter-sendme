@@ -142,17 +142,14 @@ See [PRIVACY.md](PRIVACY.md) for information about how AlterSendme handles your 
 ## Contributors
 
 <a href="https://github.com/bruceblink/alter-sendme/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=bruceblink/alter-sendme" />
+  <img src="https://contrib.rocks/image?repo=bruceblink/alter-sendme"  alt="bruceblink/alter-sendme"/>
 </a>
 
 
 ## Acknowledgements
 
-
-- [Iroh](https://www.iroh.computer)
 - [Tauri](https://v2.tauri.app)
-- [Sendme](https://www.iroh.computer/sendme)
-
+- [Sendmer](https://crates.io/crates/sendmer)
 
 ## Contact 
 
