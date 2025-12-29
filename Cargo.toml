@@ -35,5 +35,5 @@ crossterm = { version = "0.29.0", features = [
     "osc52",
 ]}
 windows-sys = { version = "0.61", features = ["Win32_System_Console"]}
-sendmer = "0.2.0"
+sendmer = "0.2"
 

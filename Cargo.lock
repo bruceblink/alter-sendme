@@ -5475,30 +5475,25 @@ checksum = "cd0b0ec5f1c1ca621c432a25813d8d60c88abe6d3e08a3eb9cf37d97a0fe3d73"
 
 [[package]]
 name = "sendmer"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e263c38fe4f1829ce5be8c3ab7523d51e9fef64fc1008af1fdea1ddf122b1ce"
+checksum = "707ef0fe2dc992b419cba02b2f50d7d210df3d51f4ae7e11757f9dabc5380b1a"
 dependencies = [
  "anyhow",
-    "async-trait",
  "clap",
  "console",
  "crossterm",
  "data-encoding",
     "derive_more 2.1.1",
  "dirs",
- "futures-buffered",
- "hex",
  "indicatif",
  "iroh",
  "iroh-blobs",
- "irpc",
  "libc",
  "n0-future",
  "num_cpus",
  "rand 0.9.2",
  "serde",
- "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",

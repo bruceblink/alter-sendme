@@ -47,7 +47,6 @@ impl EventEmitter for TauriEventEmitter {
 
             // started / completed 没有 payload
             _ => {
-                println!("event_name: {:?}", event_name);
                 let _ = self.app_handle.emit(&event_name, ());
             }
         }
