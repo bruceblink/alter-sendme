@@ -5475,9 +5475,9 @@ checksum = "cd0b0ec5f1c1ca621c432a25813d8d60c88abe6d3e08a3eb9cf37d97a0fe3d73"
 
 [[package]]
 name = "sendmer"
-version = "0.2.1"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "707ef0fe2dc992b419cba02b2f50d7d210df3d51f4ae7e11757f9dabc5380b1a"
+checksum = "d02ef00777eeb3c60cc2f206b0ad3b0ac77902394c4fef6e1b77a05599a808cf"
 dependencies = [
  "anyhow",
  "clap",

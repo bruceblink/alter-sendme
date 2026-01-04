@@ -2,7 +2,7 @@ use crate::state::{AppStateMutex, ShareHandle};
 use sendmer::core::types::TransferEvent;
 use sendmer::{
     AddrInfoOptions, AppHandle, EventEmitter, ReceiveOptions, RelayModeOption, SendOptions,
-    download, start_share,
+    receive, send,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -129,7 +129,7 @@ pub async fn start_sharing(
     let boxed_handle: AppHandle = Some(emitter);
 
     // Start sharing using the core library
-    match start_share(path.clone(), options, boxed_handle).await {
+    match send(path.clone(), options, boxed_handle).await {
         Ok(result) => {
             let ticket = result.ticket.clone();
             // CRITICAL: Store the entire SendResult to keep router and temp_tag alive!
@@ -176,7 +176,7 @@ pub async fn receive_file(
     let boxed_handle: AppHandle = Some(emitter);
 
     // Download using the core library
-    match download(ticket, options, boxed_handle).await {
+    match receive(ticket, options, boxed_handle).await {
         Ok(result) => Ok(result.message),
         Err(e) => {
             tracing::error!("Failed to receive file: {}", e);
