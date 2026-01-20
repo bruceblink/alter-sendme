@@ -13,11 +13,52 @@
 </div>
 
 <div style="text-align: center">
-
-![Version][badge-version]
-![Platforms][badge-platforms]
-[![Sponsor][badge-sponsor]](https://github.com/sponsors/bruceblink)
-
+    <a href="https://github.com/bruceblink/alter-sendme/releases/latest" target="_blank">
+        <img src="https://img.shields.io/github/v/release/bruceblink/alter-sendme" alt="release-version">
+    </a>
+    <!-- total download -->
+    <a href="https://github.com/bruceblink/alter-sendme/releases/latest" target="_blank">
+        <img src="https://img.shields.io/github/downloads/bruceblink/alter-sendme/total" alt="downloads">
+    </a>
+    <!-- stars -->
+    <a href="https://github.com/bruceblink/alter-sendme/stargazers" target="_blank">
+        <img src="https://img.shields.io/github/stars/bruceblink/alter-sendme?" alt="stars">
+    </a>
+    <!-- forks -->
+    <a href="https://github.com/bruceblink/alter-sendme/network/members" target="_blank">
+        <img src="https://img.shields.io/github/forks/bruceblink/alter-sendme.svg?" alt="fork">
+    </a>
+    <!-- visitors -->
+    <a href="https://github.com/bruceblink/alter-sendme" target="_blank">
+        <img src="https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fbruceblink%2Fani-todo-app&countColor=%23263759&style=flat"
+            alt="visitors">
+    </a>
+    <!-- license -->
+    <a href="https://github.com/bruceblink/alter-sendme/blob/main/LICENSE" target="_blank">
+        <img src="https://img.shields.io/github/license/bruceblink/alter-sendme" alt="license">
+    </a>
+    <!-- sponsor -->
+    <a href="https://github.com/bruceblink/alter-sendme/blob/main/LICENSE" target="_blank">
+        <img src="https://img.shields.io/badge/sponsor-ff69b4" alt="sponsor">
+    </a>
+    <br>
+    <!-- window -->
+    <a href="https://github.com/bruceblink/alter-sendme/releases/latest" target="_blank">
+        <img src="https://img.shields.io/badge/Windows-0078D6?style=flat&logo=windows&logoColor=white" alt="window">
+    </a>
+    <!-- macos -->
+    <a href="https://github.com/bruceblink/alter-sendme/releases/latest" target="_blank">
+        <img src="https://img.shields.io/badge/MACOS-adb8c5?style=flat&logo=macos&logoColor=white" alt="macos">
+    </a>
+    <!-- linux -->
+    <a href="https://github.com/bruceblink/alter-sendme/releases/latest" target="_blank">
+        <img src="https://img.shields.io/badge/linux-1793D1?style=flat&logo=linux&logoColor=white" alt="linux">
+    </a>
+    <br>
+    <a href="https://www.buymeacoffee.com/bruceblink" target="_blank"><img
+            src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="Buy Me A Coffee"
+            style="height: 40px !important;width: 145px !important;">
+    </a>
 
 </div>
 
