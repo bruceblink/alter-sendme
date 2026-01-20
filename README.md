@@ -1,4 +1,4 @@
-<div align="center">
+<div style="text-align: center">
 
 # File transfer doesn't need to be complicated
 
@@ -6,13 +6,13 @@
 
 
 
-<div align="center">
+<div style="text-align: center">
 
 ![AlterSendme working demo](assets/animation.gif)
 
 </div>
 
-<div align="center">
+<div style="text-align: center">
 
 ![Version][badge-version]
 ![Platforms][badge-platforms]
@@ -156,12 +156,6 @@ See [PRIVACY.md](PRIVACY.md) for information about how AlterSendme handles your 
 
 Thank you for checking out this project! If you find it useful, consider giving it a star and helping spread the word.
 
-
-
-
-<!-- <div align="center" style="color: gray;"></div> -->
-
-[badge-website]: https://img.shields.io/badge/website-altsendme.com-orange
 
 [badge-version]: https://img.shields.io/badge/version-0.1.5-blue
 [badge-platforms]: https://img.shields.io/badge/platforms-macOS%2C%20Windows%2C%20Linux%2C%20-green
