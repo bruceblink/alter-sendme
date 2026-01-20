@@ -1,4 +1,4 @@
-<div style="text-align: center">
+<div align="center">
 
 # File transfer doesn't need to be complicated
 
@@ -6,13 +6,13 @@
 
 
 
-<div style="text-align: center">
+<div align="center">
 
 ![AlterSendme working demo](assets/animation.gif)
 
 </div>
 
-<div style="text-align: center">
+<div align="center">
     <a href="https://github.com/bruceblink/alter-sendme/releases/latest" target="_blank">
         <img src="https://img.shields.io/github/v/release/bruceblink/alter-sendme" alt="release-version">
     </a>
