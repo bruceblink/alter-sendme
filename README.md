@@ -30,7 +30,7 @@
     </a>
     <!-- visitors -->
     <a href="https://github.com/bruceblink/alter-sendme" target="_blank">
-        <img src="https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fbruceblink%2Fani-todo-app&countColor=%23263759&style=flat"
+        <img src="https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fbruceblink%2Falter-sendme&countColor=%23263759&style=flat"
             alt="visitors">
     </a>
     <!-- license -->
