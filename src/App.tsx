@@ -7,7 +7,7 @@ import {VERSION_DISPLAY} from './lib/version'
 import {TranslationProvider, useTranslation} from './i18n'
 import {LanguageSwitcher} from './components/LanguageSwitcher'
 import {openUrl} from '@tauri-apps/plugin-opener'
-import {SPONSORING_URL} from "@/lib/author.ts";
+import {REPOSITORY_URL, SPONSORING_URL} from "@/lib/author.ts";
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<'send' | 'receive'>('send')
@@ -126,7 +126,13 @@ function AppContent() {
         </div>
       </div>
       <div className="w-full h-10 text-center text-xs flex items-center justify-center relative">
-        <span>{VERSION_DISPLAY}</span>
+        <span>
+            <a target="_blank"
+               href={`${REPOSITORY_URL}/releases/tag/${VERSION_DISPLAY}`}
+               className="btn text-sm ml-1 font-mono">
+                {VERSION_DISPLAY}
+            </a>
+        </span>
         <button
           onClick={async () => {
             try {
