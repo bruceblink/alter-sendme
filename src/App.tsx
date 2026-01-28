@@ -1,13 +1,13 @@
-import { useState, useRef, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { Sender } from './components/sender/Sender'
-import { Receiver } from './components/receiver/Receiver'
-import { TitleBar } from './components/TitleBar'
-import { VERSION_DISPLAY } from './lib/version'
-import { TranslationProvider } from './i18n'
-import { useTranslation } from './i18n'
-import { LanguageSwitcher } from './components/LanguageSwitcher'
-import { openUrl } from '@tauri-apps/plugin-opener'
+import {useEffect, useRef, useState} from 'react'
+import {motion} from 'framer-motion'
+import {Sender} from './components/sender/Sender'
+import {Receiver} from './components/receiver/Receiver'
+import {TitleBar} from './components/TitleBar'
+import {VERSION_DISPLAY} from './lib/version'
+import {TranslationProvider, useTranslation} from './i18n'
+import {LanguageSwitcher} from './components/LanguageSwitcher'
+import {openUrl} from '@tauri-apps/plugin-opener'
+import {SPONSORING_URL} from "@/lib/author.ts";
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<'send' | 'receive'>('send')
@@ -130,7 +130,7 @@ function AppContent() {
         <button
           onClick={async () => {
             try {
-              await openUrl('https://buymeacoffee.com/bruceblink')
+                await openUrl(`${SPONSORING_URL}`)
             } catch (error) {
               console.error('Failed to open URL:', error)
             }
