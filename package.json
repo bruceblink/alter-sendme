@@ -1,7 +1,7 @@
 {
   "name": "alter-sendme",
   "private": true,
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "packageManager": "pnpm@10.28.1",
   "author": "[likanug <likanug.g@qq.com>](https://likanug.top)",

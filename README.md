@@ -94,14 +94,14 @@ The easiest way to get started is by downloading one of the following versions f
   </tr>
   <tr>
     <td><b>Windows</b></td>
-    <td><a href='https://github.com/bruceblink/alter-sendme/releases/download/v0.1.5/AlterSendme_0.1.5_x64-setup.exe'>AlterSendme.exe</a></td>
+    <td><a href='https://github.com/bruceblink/alter-sendme/releases/download/v0.1.6/AlterSendme_0.1.6_x64-setup.exe'>AlterSendme.exe</a></td>
   </tr>
   <tr>
     <td><b>macOS</b></td>
-    <td><a href='https://github.com/bruceblink/alter-sendme/releases/download/v0.1.5/AlterSendme_0.1.5_universal.dmg'>AlterSendme.dmg</a></td>
+    <td><a href='https://github.com/bruceblink/alter-sendme/releases/download/v0.1.6/AlterSendme_0.1.6_universal.dmg'>AlterSendme.dmg</a></td>
   <tr>
     <td><b>Linux </b></td>
-    <td><a href='https://github.com/bruceblink/alter-sendme/releases/download/v0.1.5/AlterSendme_0.1.5_amd64.deb'>AlterSendme.deb</a></td>
+    <td><a href='https://github.com/bruceblink/alter-sendme/releases/download/v0.1.6/AlterSendme_0.1.6_amd64.deb'>AlterSendme.deb</a></td>
   </tr>
 </table>
 
@@ -198,7 +198,7 @@ See [PRIVACY.md](PRIVACY.md) for information about how AlterSendme handles your 
 Thank you for checking out this project! If you find it useful, consider giving it a star and helping spread the word.
 
 
-[badge-version]: https://img.shields.io/badge/version-0.1.5-blue
+[badge-version]: https://img.shields.io/badge/version-0.1.6-blue
 [badge-platforms]: https://img.shields.io/badge/platforms-macOS%2C%20Windows%2C%20Linux%2C%20-green
 [badge-sponsor]: https://img.shields.io/badge/sponsor-ff69b4
 [badge-hire]: https://img.shields.io/badge/hire%20developer-8b5cf6
