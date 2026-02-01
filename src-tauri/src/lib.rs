@@ -6,6 +6,9 @@ use crate::state::AppState;
 use std::fs;
 use std::sync::Arc;
 
+#[cfg(target_os = "linux")]
+use tauri::Manager;
+
 mod commands;
 mod state;
 mod version;
