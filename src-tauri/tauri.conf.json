@@ -17,7 +17,7 @@
         "title": "AlterSendme",
         "width": 1024,
         "height": 640,
-        "resizable": true,
+        "resizable": false,
         "fullscreen": false,
         "maximizable": false,
         "center": true,
