@@ -1,0 +1,54 @@
+name-template: "AlterSendme $RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
+no-changes-template: "- Maintenance release"
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  $CONTRIBUTORS
+
+categories:
+  - title: "Features"
+    labels:
+      - "feature"
+      - "enhancement"
+      - "feat"
+  - title: "Fixes"
+    labels:
+      - "bug"
+      - "fix"
+      - "bugfix"
+  - title: "Maintenance"
+    labels:
+      - "chore"
+      - "refactor"
+      - "ci"
+      - "docs"
+      - "dependencies"
+
+exclude-labels:
+  - "skip-changelog"
+
+version-resolver:
+  major:
+    labels:
+      - "major"
+      - "breaking-change"
+  minor:
+    labels:
+      - "feature"
+      - "enhancement"
+      - "feat"
+  patch:
+    labels:
+      - "bug"
+      - "fix"
+      - "bugfix"
+      - "chore"
+      - "refactor"
+      - "ci"
+      - "docs"
+      - "dependencies"
+  default: patch

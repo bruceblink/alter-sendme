@@ -28,7 +28,7 @@ jobs:
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
       version: ${{ steps.meta.outputs.version }}
-      release_body: ${{ steps.notes.outputs.body }}
+      release_body: ${{ steps.drafter.outputs.body != '' && steps.drafter.outputs.body || steps.notes.outputs.body }}
       draft: ${{ steps.draft.outputs.value }}
 
     steps:
@@ -105,8 +105,22 @@ jobs:
             echo "value=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Generate release notes
+      - name: Generate release notes with Release Drafter
+        id: drafter
+        continue-on-error: true
+        uses: release-drafter/release-drafter@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          config-name: release-drafter.yml
+          disable-autolabeler: true
+          version: ${{ steps.meta.outputs.version }}
+          tag: ${{ steps.meta.outputs.tag }}
+          name: AlterSendme ${{ steps.meta.outputs.version }}
+
+      - name: Generate fallback release notes
         id: notes
+        if: steps.drafter.outputs.body == ''
         shell: bash
         run: |
           CUR="${{ steps.meta.outputs.tag }}"
@@ -129,6 +143,7 @@ jobs:
           echo "body<<EOF" >> "$GITHUB_OUTPUT"
           cat notes.md >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
+
 
   publish-tauri:
     needs: preflight
