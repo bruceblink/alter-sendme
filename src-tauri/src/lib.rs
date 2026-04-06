@@ -25,7 +25,7 @@ pub fn run() {
         .with_line_number(true)
         .init();
 
-    tracing::info!("Starting Sendme Desktop application v{}", version::VERSION);
+    tracing::info!("Starting Sendmer Desktop application v{}", version::VERSION);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
