@@ -1,7 +1,8 @@
-import {useEffect, useRef, useState} from 'react'
+import {useCallback, useEffect, useRef, useState} from 'react'
 import {invoke} from '@tauri-apps/api/core'
 import {listen, UnlistenFn} from '@tauri-apps/api/event'
 import {useTranslation} from '@/i18n'
+import { basenameFromPath } from '@/lib/path'
 import type {AlertDialogState, AlertType, TransferMetadata, TransferProgress} from '@/types/sender'
 
 export interface UseSenderReturn {
@@ -137,7 +138,7 @@ export function useSender(): UseSenderReturn {
         const currentPath = selectedPathRef.current
         const currentPathType = pathTypeRef.current
         if (currentPath) {
-          const fileName = currentPath.split('/').pop() || 'Unknown'
+          const fileName = basenameFromPath(currentPath) || 'Unknown'
           const estimatedFileSize = latestProgressRef.current?.totalBytes || 0
           
           setTransferMetadata({ 
@@ -196,7 +197,7 @@ export function useSender(): UseSenderReturn {
         const currentPath = selectedPathRef.current
         const currentPathType = pathTypeRef.current
         if (currentPath) {
-          const fileName = currentPath.split('/').pop() || 'Unknown'
+          const fileName = basenameFromPath(currentPath) || 'Unknown'
           setTransferMetadata({ 
             fileName, 
             fileSize: 0, 
@@ -233,7 +234,7 @@ export function useSender(): UseSenderReturn {
     setAlertDialog(prev => ({ ...prev, isOpen: false }))
   }
 
-  const handleFileSelect = async (path: string) => {
+  const handleFileSelect = useCallback(async (path: string) => {
     setSelectedPath(path)
     try {
       const type = await invoke<string>('check_path_type', { path })
@@ -242,7 +243,7 @@ export function useSender(): UseSenderReturn {
       console.error('Failed to check path type:', error)
       setPathType(null)
     }
-  }
+  }, [])
 
   const startSharing = async () => {
     if (!selectedPath) return
@@ -288,7 +289,7 @@ export function useSender(): UseSenderReturn {
         }
         
         const endTime = Date.now()
-        const fileName = currentSelectedPath.split('/').pop() || 'Unknown'
+        const fileName = basenameFromPath(currentSelectedPath) || 'Unknown'
         const currentPathType = pathTypeRef.current
         
         const stoppedMetadata: TransferMetadata = {

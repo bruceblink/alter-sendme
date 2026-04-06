@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api/core'
@@ -31,7 +31,7 @@ export function useDragDrop(onFileSelect: (path: string) => void): UseDragDropRe
     type: 'info'
   })
 
-  const checkPathType = async (path: string) => {
+  const checkPathType = useCallback(async (path: string) => {
     try {
       const type = await invoke<string>('check_path_type', { path })
       setPathType(type as 'file' | 'directory')
@@ -39,19 +39,19 @@ export function useDragDrop(onFileSelect: (path: string) => void): UseDragDropRe
       console.error('Failed to check path type:', error)
       setPathType(null)
     }
-  }
+  }, [])
 
-  const showAlert = (title: string, description: string, type: AlertType = 'info') => {
+  const showAlert = useCallback((title: string, description: string, type: AlertType = 'info') => {
     setAlertDialog({ isOpen: true, title, description, type })
-  }
+  }, [])
 
-  const closeAlert = () => {
+  const closeAlert = useCallback(() => {
     setAlertDialog(prev => ({ ...prev, isOpen: false }))
-  }
+  }, [])
 
-  const toggleFullPath = () => {
+  const toggleFullPath = useCallback(() => {
     setShowFullPath(prev => !prev)
-  }
+  }, [])
 
   const browseFile = async () => {
     try {

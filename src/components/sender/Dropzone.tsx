@@ -1,6 +1,7 @@
 import { Upload, CheckCircle, ChevronRight, ChevronDown, Loader2 } from 'lucide-react'
 import type { DropzoneProps } from '@/types/sender.ts'
 import { useTranslation } from '@/i18n'
+import { basenameFromPath } from '@/lib/path'
 
 export function Dropzone({ 
   isDragActive, 
@@ -75,7 +76,7 @@ export function Dropzone({
             onClick={onToggleFullPath}
             title="Click to toggle full path"
           >
-            {selectedPath.split('/').pop()}
+            {basenameFromPath(selectedPath)}
             <span className="-mr-2">
               {showFullPath ? (
                 <ChevronDown className="p-0.5 h-6 w-6" size={16} />

@@ -1,10 +1,11 @@
-import {useEffect, useRef, useState} from 'react'
+import {useCallback, useEffect, useRef, useState} from 'react'
 import {invoke} from '@tauri-apps/api/core'
 import {listen, UnlistenFn} from '@tauri-apps/api/event'
 import {open} from '@tauri-apps/plugin-dialog'
 import {downloadDir, join} from '@tauri-apps/api/path'
 import {revealItemInDir} from '@tauri-apps/plugin-opener'
 import {useTranslation} from '@/i18n'
+import { basenameFromPath } from '@/lib/path'
 import type {AlertDialogState, AlertType, TransferMetadata, TransferProgress} from '@/types/sender'
 
 export interface UseReceiverReturn {
@@ -190,10 +191,10 @@ export function useReceiver(): UseReceiverReturn {
         if (currentFileNames.length > 0) {
           if (currentFileNames.length === 1) {
             const fullPath = currentFileNames[0]
-            displayName = fullPath.split('/').pop() || fullPath
+            displayName = basenameFromPath(fullPath) || fullPath
           } else {
             const firstPath = currentFileNames[0]
-            const pathParts = firstPath.split('/')
+            const pathParts = normalizeSeparators(firstPath).split('/')
             if (pathParts.length > 1) {
               displayName = pathParts[0] || `${currentFileNames.length} files`
             } else {
@@ -226,9 +227,9 @@ export function useReceiver(): UseReceiverReturn {
     }
   }, [])
 
-  const showAlert = (title: string, description: string, type: AlertType = 'info') => {
+  const showAlert = useCallback((title: string, description: string, type: AlertType = 'info') => {
     setAlertDialog({ isOpen: true, title, description, type })
-  }
+  }, [])
 
   const closeAlert = () => {
     setAlertDialog(prev => ({ ...prev, isOpen: false }))

@@ -3,6 +3,7 @@ import { Copy, CheckCircle, Square } from 'lucide-react'
 import type { SharingControlsProps, TicketDisplayProps } from '@/types/sender.ts'
 import { TransferProgressBar } from './TransferProgressBar'
 import { useTranslation } from '@/i18n'
+import { basenameFromPath } from '@/lib/path'
 
 export function SharingActiveCard({ 
   selectedPath, 
@@ -113,7 +114,7 @@ export function SharingActiveCard({
     <div className="space-y-4">
       <div className="p-4 rounded-lg absolute top-0 left-0">
            <p className="text-xs mb-4 max-w-[30rem] truncate" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-          <strong className="mr-1">{t('common:sender.fileLabel')}</strong> {selectedPath?.split('/').pop()}
+          <strong className="mr-1">{t('common:sender.fileLabel')}</strong> {selectedPath ? basenameFromPath(selectedPath) : ''}
         </p>
         
         <div className="flex items-center mb-2">
