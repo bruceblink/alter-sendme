@@ -1,6 +1,5 @@
 import { CheckCircle, XCircle } from 'lucide-react'
 import type { SuccessScreenProps } from '@/types/sender.ts'
-import { trackTransferComplete } from '@/lib/analytics.ts'
 import { useTranslation } from '@/i18n'
 
 function formatFileSize(bytes: number): string {
@@ -46,14 +45,10 @@ function calculateAverageSpeed(fileSizeBytes: number, durationMs: number): numbe
 
 export function TransferSuccessScreen({ metadata, onDone }: SuccessScreenProps) {
   const wasStopped = metadata.wasStopped || false
-  const isReceiver = !!metadata.downloadPath
   const isDirectory = metadata.pathType === 'directory'
   const { t } = useTranslation()
   
   const handleDone = () => {
-    if (!wasStopped && !isReceiver) {
-      trackTransferComplete(metadata.fileSize, 'sender', metadata.duration)
-    }
     onDone()
   }
   
