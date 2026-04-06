@@ -4,12 +4,136 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag (example: v0.1.7)"
+        required: true
+        type: string
+      draft:
+        description: "Create/update release as draft"
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: publish-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+      release_body: ${{ steps.notes.outputs.body }}
+      draft: ${{ steps.draft.outputs.value }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout requested tag (manual trigger)
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          git fetch --tags --force
+          git checkout "refs/tags/${{ inputs.tag }}"
+
+      - name: Resolve tag and version
+        id: meta
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid tag format: $TAG (expected vX.Y.Z)"
+            exit 1
+          fi
+
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Validate repository versions match tag
+        shell: bash
+        run: |
+          export EXPECTED_VERSION="${{ steps.meta.outputs.version }}"
+          node - <<'EOF'
+          const fs = require('fs');
+
+          const expected = process.env.EXPECTED_VERSION;
+          const checks = {
+            "package.json": JSON.parse(fs.readFileSync("package.json", "utf8")).version,
+            "src-tauri/package.json": JSON.parse(fs.readFileSync("src-tauri/package.json", "utf8")).version,
+            "src-tauri/tauri.conf.json": JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json", "utf8")).version,
+          };
+
+          const cargo = fs.readFileSync("Cargo.toml", "utf8");
+          const cargoMatch = cargo.match(/^version = "([0-9]+\.[0-9]+\.[0-9]+)"/m);
+          checks["Cargo.toml"] = cargoMatch ? cargoMatch[1] : null;
+
+          const readme = fs.readFileSync("README.md", "utf8");
+          const badgeMatch = readme.match(/\[badge-version\]:\s*https:\/\/img\.shields\.io\/badge\/version-([0-9.]+)-blue/);
+          checks["README.md badge"] = badgeMatch ? badgeMatch[1] : null;
+
+          const mismatches = Object.entries(checks)
+            .filter(([, v]) => v !== expected)
+            .map(([k, v]) => `${k}: found "${v}", expected "${expected}"`);
+
+          if (mismatches.length > 0) {
+            console.error("Version mismatch detected:");
+            for (const m of mismatches) console.error(`  - ${m}`);
+            process.exit(1);
+          }
+          EOF
+
+      - name: Resolve draft mode
+        id: draft
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ inputs.draft }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate release notes
+        id: notes
+        shell: bash
+        run: |
+          CUR="${{ steps.meta.outputs.tag }}"
+          PREV=$(git tag --sort=-v:refname | grep -v "^$CUR$" | head -n 1)
+
+          if [ -z "$PREV" ]; then
+            LOG=$(git log HEAD --pretty="- %s (%h)" --no-merges | head -50 || true)
+          else
+            LOG=$(git log "$PREV..HEAD" --pretty="- %s (%h)" --no-merges | head -50 || true)
+          fi
+
+          {
+            echo "## What's Changed"
+            echo
+            echo "${LOG:-- Initial release}"
+            echo
+            [ -n "$PREV" ] && echo "**Full Changelog**: https://github.com/${GITHUB_REPOSITORY}/compare/$PREV...$CUR"
+          } > notes.md
+
+          echo "body<<EOF" >> "$GITHUB_OUTPUT"
+          cat notes.md >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
   publish-tauri:
+    needs: preflight
     permissions:
       contents: write
-
     strategy:
       fail-fast: false
       matrix:
@@ -20,20 +144,14 @@ jobs:
             args: ""
           - os: windows-latest
             args: "--bundles nsis,msi"
-
     runs-on: ${{ matrix.os }}
 
     steps:
-      # --------------------
-      # Checkout
-      # --------------------
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: refs/tags/${{ needs.preflight.outputs.tag }}
 
-      # --------------------
-      # Node + pnpm
-      # --------------------
       - name: setup node
         uses: actions/setup-node@v4
         with:
@@ -45,9 +163,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # --------------------
-      # Rust
-      # --------------------
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -58,9 +173,6 @@ jobs:
         with:
           workspaces: ./ -> target
 
-      # --------------------
-      # Platform-specific dependencies
-      # --------------------
       - name: Linux deps
         if: matrix.os == 'ubuntu-22.04'
         run: |
@@ -75,19 +187,6 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: choco install nsis -y
 
-      # --------------------
-      # Sync version from tag
-      # --------------------
-      - name: Sync version from tag
-        shell: bash
-        run: |
-          VERSION="${GITHUB_REF#refs/tags/v}"
-          (cd src-tauri && npm pkg set version="$VERSION" && npm run sync-version && npm run validate-version)
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
-      # --------------------
-      # macOS signing (optional)
-      # --------------------
       - name: Import Apple certificate
         if: matrix.os == 'macos-latest' && env.APPLE_CERTIFICATE
         env:
@@ -97,43 +196,12 @@ jobs:
           CERT=$RUNNER_TEMP/cert.p12
           KEYCHAIN=$RUNNER_TEMP/signing.keychain-db
 
-          echo "$APPLE_CERTIFICATE" | base64 --decode > $CERT
-          security create-keychain -p "$APPLE_CERTIFICATE_PASSWORD" $KEYCHAIN
-          security unlock-keychain -p "$APPLE_CERTIFICATE_PASSWORD" $KEYCHAIN
-          security import $CERT -P "$APPLE_CERTIFICATE_PASSWORD" -A -k $KEYCHAIN
-          security list-keychain -d user -s $KEYCHAIN
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$CERT"
+          security create-keychain -p "$APPLE_CERTIFICATE_PASSWORD" "$KEYCHAIN"
+          security unlock-keychain -p "$APPLE_CERTIFICATE_PASSWORD" "$KEYCHAIN"
+          security import "$CERT" -P "$APPLE_CERTIFICATE_PASSWORD" -A -k "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN"
 
-      # --------------------
-      # Generate release notes
-      # --------------------
-      - name: Generate release notes
-        id: notes
-        shell: bash
-        run: |
-          CUR="${GITHUB_REF_NAME}"
-          PREV=$(git tag --sort=-v:refname | grep -v "^$CUR$" | head -n 1)
-
-          if [ -z "$PREV" ]; then
-            LOG=$(git log HEAD --pretty="- %s (%h)" --no-merges || true | head -50)
-          else
-            LOG=$(git log $PREV..HEAD --pretty="- %s (%h)" --no-merges || true | head -50)
-          fi
-
-          {
-            echo "## What's Changed"
-            echo
-            echo "${LOG:-- Initial release}"
-            echo
-            [ -n "$PREV" ] && echo "**Full Changelog**: https://github.com/${GITHUB_REPOSITORY}/compare/$PREV...$CUR"
-          } > notes.md
-
-          echo "body<<EOF" >> $GITHUB_OUTPUT
-          cat notes.md >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      # --------------------
-      # Tauri build + publish
-      # --------------------
       - uses: tauri-apps/tauri-action@v0.5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -145,9 +213,9 @@ jobs:
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         with:
           projectPath: ./
-          tagName: ${{ github.ref_name }}
-          releaseName: AlterSendme ${{ env.VERSION }}
-          releaseBody: ${{ steps.notes.outputs.body }}
-          releaseDraft: true
+          tagName: ${{ needs.preflight.outputs.tag }}
+          releaseName: AlterSendme ${{ needs.preflight.outputs.version }}
+          releaseBody: ${{ needs.preflight.outputs.release_body }}
+          releaseDraft: ${{ needs.preflight.outputs.draft }}
           includeUpdaterJson: true
           args: ${{ matrix.args }}
