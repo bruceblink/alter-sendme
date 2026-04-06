@@ -6,6 +6,7 @@ use sendmer::{
 };
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 use tauri::{Emitter, State};
 
 // Wrapper for Tauri AppHandle that implements EventEmitter
@@ -103,15 +104,17 @@ pub async fn start_sharing(
 ) -> Result<String, String> {
     let path = PathBuf::from(path);
 
-    // Check if already sharing
-    let mut app_state = state.lock().await;
-    if app_state.current_share.is_some() {
-        return Err("Already sharing a file. Please stop current share first.".to_string());
-    }
-
     // Validate path exists
     if !path.exists() {
         return Err(format!("Path does not exist: {}", path.display()));
+    }
+
+    // Check if already sharing
+    {
+        let app_state = state.lock().await;
+        if app_state.current_share.is_some() {
+            return Err("Already sharing a file. Please stop current share first.".to_string());
+        }
     }
 
     // Create send options with defaults
@@ -132,6 +135,26 @@ pub async fn start_sharing(
     match send(path.clone(), options, boxed_handle).await {
         Ok(result) => {
             let ticket = result.ticket.clone();
+            let mut app_state = state.lock().await;
+
+            // Another request may have started sharing while we were awaiting `send`.
+            if app_state.current_share.is_some() {
+                match tokio::time::timeout(Duration::from_secs(2), result.router.shutdown()).await {
+                    Ok(Ok(())) => {}
+                    Ok(Err(e)) => {
+                        tracing::warn!("Router shutdown error during race cleanup: {}", e);
+                    }
+                    Err(_) => {
+                        tracing::warn!("Router shutdown timeout during race cleanup");
+                    }
+                }
+
+                return Err(
+                    "Another sharing session started while initializing. Please retry."
+                        .to_string(),
+                );
+            }
+
             // CRITICAL: Store the entire SendResult to keep router and temp_tag alive!
             app_state.current_share = Some(ShareHandle::new(ticket.clone(), path, result));
             Ok(ticket)
@@ -143,9 +166,12 @@ pub async fn start_sharing(
 /// Stop the current sharing session
 #[tauri::command]
 pub async fn stop_sharing(state: State<'_, AppStateMutex>) -> Result<(), String> {
-    let mut app_state = state.lock().await;
+    let share_to_stop = {
+        let mut app_state = state.lock().await;
+        app_state.current_share.take()
+    };
 
-    if let Some(mut share) = app_state.current_share.take() {
+    if let Some(mut share) = share_to_stop {
         // Explicitly clean up the share session
         share.stop().await?
     }
@@ -211,11 +237,4 @@ pub async fn check_path_type(path: String) -> Result<String, String> {
     } else {
         Err("Path is neither a file nor a directory".to_string())
     }
-}
-
-/// Get the current transport status (whether bytes are actively being transferred)
-#[tauri::command]
-pub async fn get_transport_status(state: State<'_, AppStateMutex>) -> Result<bool, String> {
-    let app_state = state.lock().await;
-    Ok(app_state.is_transporting)
 }

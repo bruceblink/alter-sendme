@@ -1,6 +1,5 @@
 use crate::commands::{
-    check_path_type, get_file_size, get_sharing_status, get_transport_status, receive_file,
-    start_sharing, stop_sharing,
+    check_path_type, get_file_size, get_sharing_status, receive_file, start_sharing, stop_sharing,
 };
 use crate::state::AppState;
 use std::fs;
@@ -32,8 +31,6 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
-        .plugin(tauri_plugin_http::init())
-        .plugin(tauri_plugin_shell::init())
         .manage(Arc::new(tokio::sync::Mutex::new(AppState::default())))
         .invoke_handler(tauri::generate_handler![
             start_sharing,
@@ -41,7 +38,6 @@ pub fn run() {
             receive_file,
             get_sharing_status,
             check_path_type,
-            get_transport_status,
             get_file_size,
         ])
         .setup(|_app| {
