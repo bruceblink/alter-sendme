@@ -13,9 +13,6 @@
     "core:window:allow-set-focus",
     "os:default",
     "opener:default",
-    "dialog:default",
-    "shell:default",
-    "shell:allow-spawn",
-    "shell:allow-open"
+    "dialog:default"
   ]
 }

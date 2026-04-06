@@ -46,11 +46,11 @@
       ],
       "csp": {
         "default-src": "'self' customprotocol: asset: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*",
-        "connect-src": "ipc: http://ipc.localhost http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* https: http:",
+        "connect-src": "ipc: http://ipc.localhost http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* https:",
         "font-src": "'self' asset: http://asset.localhost blob: data: https:",
         "img-src": "'self' asset: http://asset.localhost blob: data: https:",
         "style-src": "'unsafe-inline' 'self'",
-        "script-src": "'self' asset: http://asset.localhost https://gc.zgo.at"
+        "script-src": "'self' asset: http://asset.localhost"
       },
       "assetProtocol": {
         "enable": true,
