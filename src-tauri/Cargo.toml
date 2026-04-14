@@ -30,6 +30,7 @@ tracing-subscriber.workspace = true
 walkdir.workspace = true
 serde_json.workspace = true
 sendmer.workspace = true
+color-backtrace.workspace = true
 
 [features]
 default = ["custom-protocol"]

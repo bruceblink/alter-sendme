@@ -1,8 +1,7 @@
 use crate::state::{AppStateMutex, ShareHandle};
-use sendmer::core::types::TransferEvent;
 use sendmer::{
     AddrInfoOptions, AppHandle, EventEmitter, ReceiveOptions, RelayModeOption, SendOptions,
-    receive, send,
+    TransferEvent, receive, send,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -156,8 +155,8 @@ pub async fn start_sharing(
             }
 
             // CRITICAL: Store the entire SendResult to keep router and temp_tag alive!
-            app_state.current_share = Some(ShareHandle::new(ticket.clone(), path, result));
-            Ok(ticket)
+            app_state.current_share = Some(ShareHandle::new(ticket.to_string(), path, result));
+            Ok(ticket.to_string())
         }
         Err(e) => Err(format!("Failed to start sharing: {}", e)),
     }
