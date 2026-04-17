@@ -5,15 +5,7 @@ import { ShareActionCard } from './ShareActionCard'
 import { SharingActiveCard } from './SharingActiveCard'
 import { PulseAnimation } from './PulseAnimation'
 import { TransferSuccessScreen } from './TransferSuccessScreen'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '../ui/alert-dialog'
+import { AppAlertDialog } from '../AppAlertDialog'
 import { useSender } from '@/hooks/useSender.ts'
 import { useTranslation } from '@/i18n'
 
@@ -119,21 +111,13 @@ export function Sender({ onTransferStateChange }: SenderProps) {
         </>
       )}
 
-      <AlertDialog open={alertDialog.isOpen} onOpenChange={closeAlert}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{alertDialog.title}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {alertDialog.description}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={closeAlert}>
-              {t('common:ok')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <AppAlertDialog
+        isOpen={alertDialog.isOpen}
+        title={alertDialog.title}
+        description={alertDialog.description}
+        type={alertDialog.type}
+        onClose={closeAlert}
+      />
     </div>
   )
 }

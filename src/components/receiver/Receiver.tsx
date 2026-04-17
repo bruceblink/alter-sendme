@@ -12,6 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../ui/alert-dialog'
+import { AppAlertDialog } from '../AppAlertDialog'
 import { useReceiver } from '@/hooks/useReceiver.ts'
 import { Info } from 'lucide-react'
 import { useTranslation } from '@/i18n'
@@ -111,21 +112,13 @@ export function Receiver({ onTransferStateChange }: ReceiverProps) {
         </>
       )}
 
-      <AlertDialog open={alertDialog.isOpen} onOpenChange={closeAlert}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{alertDialog.title}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {alertDialog.description}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={closeAlert}>
-              {t('common:ok')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <AppAlertDialog
+        isOpen={alertDialog.isOpen}
+        title={alertDialog.title}
+        description={alertDialog.description}
+        type={alertDialog.type}
+        onClose={closeAlert}
+      />
 
       <AlertDialog open={showInstructionsDialog} onOpenChange={setShowInstructionsDialog}>
         <AlertDialogContent>
