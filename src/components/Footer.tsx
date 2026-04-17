@@ -14,11 +14,11 @@ export function Footer() {
     }, []);
 
     return (
-        <div className="w-full h-10 text-center text-xs flex items-center justify-center relative">
+        <div className="relative flex items-center justify-center w-full h-10 text-xs text-center">
         <span>
             <a target="_blank"
                href={`${REPOSITORY_URL}/releases/tag/v${appVersion}`}
-               className="btn text-sm ml-1 font-mono">
+               className="ml-1 font-mono text-sm btn">
                 v{appVersion}
             </a>
         </span>
@@ -30,14 +30,7 @@ export function Footer() {
                         console.error('Failed to open URL:', error)
                     }
                 }}
-                className="absolute left-6 bottom-2 px-2 py-1 text-xs transition-colors hover:opacity-80"
-                style={{
-                    color: 'var(--app-main-view-fg)',
-                    textDecoration: 'underline',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                }}
+                className="absolute px-2 py-1 text-xs underline transition-colors cursor-pointer left-6 bottom-2 hover:opacity-80 text-app-fg"
             >
                 {t('common:donate')}
             </button>

@@ -59,57 +59,26 @@ export function LanguageSwitcher() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1 px-2 py-1 text-xs transition-colors hover:opacity-80"
-        style={{
-          color: 'var(--app-main-view-fg)',
-          textDecoration: 'underline',
-          backgroundColor: 'transparent',
-          border: 'none',
-          cursor: 'pointer',
-        }}
+        className="flex items-center gap-1 px-2 py-1 text-xs transition-colors hover:opacity-80 text-app-fg underline cursor-pointer"
       >
         {currentLanguage.label}
         <ChevronDown 
           size={12} 
-          className="transition-transform"
-          style={{ 
-            transform: isOpen ? 'rotate(0deg)' : 'rotate(180deg)',
-          }}
+          className={`transition-transform ${isOpen ? 'rotate-0' : 'rotate-180'}`}
         />
       </button>
 
       {isOpen && (
         <div
-          className="language-dropdown absolute right-0 bottom-full mb-1 rounded-md shadow-lg overflow-y-auto z-50"
-          style={{
-            backgroundColor: 'var(--app-main-view)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            minWidth: '120px',
-            maxHeight: '30vh',
-          }}
+          className="language-dropdown absolute right-0 bottom-full mb-1 rounded-md shadow-lg overflow-y-auto z-50 bg-[var(--app-main-view)] border border-white/20 min-w-[120px] max-h-[30vh]"
         >
           {LANGUAGES.map((lang) => (
             <button
               key={lang.value}
               onClick={() => changeLanguage(lang.value)}
-              className="w-full text-left px-3 py-2 text-xs transition-colors"
-              style={{
-                color: 'var(--app-main-view-fg)',
-                backgroundColor: i18n.language === lang.value 
-                  ? 'rgba(255, 255, 255, 0.1)' 
-                  : 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 
-                  i18n.language === lang.value 
-                    ? 'rgba(255, 255, 255, 0.1)' 
-                    : 'transparent'
-              }}
+              className={`w-full text-left px-3 py-2 text-xs transition-colors cursor-pointer text-app-fg hover:bg-white/15 ${
+                i18n.language === lang.value ? 'bg-white/10' : 'bg-transparent'
+              }`}
             >
               {lang.label}
             </button>

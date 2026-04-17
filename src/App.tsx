@@ -18,38 +18,28 @@ function AppContent() {
   }, [])
 
   return (
-    <div className="h-screen flex flex-col relative glass-background select-none" style={{ color: 'var(--app-bg-fg)' }}>
+    <div className="relative flex flex-col h-screen select-none glass-background">
       {IS_LINUX && <TitleBar title={t('common:appTitle')} />}
       
       {IS_MACOS && (
         <div 
-          className="absolute w-full h-10 z-10" 
+          className="absolute z-10 w-full h-10" 
           data-tauri-drag-region 
         />
       )}
       
-      <div className="container mx-auto p-8 flex-1 overflow-auto">
+      <div className="container flex-1 p-8 mx-auto overflow-auto">
         <div className="max-w-2xl mx-auto">
           <h1
-            className="text-3xl font-bold font-mono text-center mb-8 select-none [@media(min-height:680px)]:block hidden" 
-            style={{ color: 'var(--app-bg-fg)' }}
+            className="text-3xl font-bold font-mono text-center mb-8 select-none [@media(min-height:680px)]:block hidden"
           >
             {t('common:appTitle')}
           </h1>
           
-          <div 
-      
-            className="flex space-x-1 mb-6 p-1 rounded-lg relative select-none" 
-            style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
-          >
+          <div className="relative flex p-1 mb-6 space-x-1 rounded-lg select-none bg-white/10">
             <motion.div
               layoutId="activeTab"
-              className="absolute h-[calc(100%-8px)] rounded-md"
-              style={{
-                backgroundColor: 'var(--app-main-view)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-              }}
+              className="absolute h-[calc(100%-8px)] rounded-md bg-[var(--app-main-view)] border border-white/20 shadow-sm"
               initial={false}
               animate={{
                 left: activeTab === 'send' ? '4px' : 'calc(50% + 2px)',
@@ -61,14 +51,11 @@ function AppContent() {
             <motion.button
               onClick={() => setActiveTab('send')}
               disabled={isReceiving}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium relative z-10 ${
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium relative z-10 text-app-fg ${
                 activeTab === 'send'
                   ? ''
                   : 'opacity-70'
               }`}
-              style={{
-                color: 'var(--app-main-view-fg)',
-              }}
              
               whileTap={{ scale: 0.98 }}
               transition={{ duration: 0.2 }}
@@ -78,14 +65,11 @@ function AppContent() {
             <motion.button
               onClick={() => setActiveTab('receive')}
               disabled={isSharing}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium relative z-10 ${
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium relative z-10 text-app-fg ${
                 activeTab === 'receive'
                   ? ''
                   : 'opacity-70'
               }`}
-              style={{
-                color: 'var(--app-main-view-fg)',
-              }}
              
               whileTap={{ scale: 0.98 }}
               transition={{ duration: 0.2 }}
@@ -95,7 +79,7 @@ function AppContent() {
           </div>
           
           <div 
-            className="rounded-lg shadow-sm glass-card overflow-hidden"
+            className="overflow-hidden rounded-lg shadow-sm glass-card"
           >
         
               {activeTab === 'send' ? (

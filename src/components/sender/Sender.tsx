@@ -50,17 +50,16 @@ export function Sender({ onTransferStateChange }: SenderProps) {
   }, [isSharing, onTransferStateChange])
 
   return (
-    <div className="p-6 space-y-6 relative h-[28rem] overflow-y-auto flex flex-col" style={{ color: 'var(--app-main-view-fg)' }}>
+    <div className="p-6 space-y-6 relative h-[28rem] overflow-y-auto flex flex-col text-app-fg">
    
 
       {!isSharing ? (
         <>
            <div className="text-center">
-           <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--app-main-view-fg)' }}>
+           <h2 className="text-xl font-semibold mb-2 text-app-fg">
              {t('common:sender.title')}
            </h2>
-           <p className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-           {t('common:sender.subtitle')}
+           <p className="text-sm text-white/60">
            </p>
          </div>
         <div className="space-y-4 flex-1 flex flex-col">
@@ -80,8 +79,8 @@ export function Sender({ onTransferStateChange }: SenderProps) {
         </>
       ) : isStopping ? (
         <div className="flex-1 flex flex-col items-center justify-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin" style={{ color: 'var(--app-accent-light)' }} />
-          <p className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+          <Loader2 className="h-12 w-12 animate-spin text-status-done" />
+          <p className="text-sm text-white/60">
             {t('common:sender.stoppingTransmission')}
           </p>
         </div>

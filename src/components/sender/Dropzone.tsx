@@ -12,47 +12,12 @@ export function Dropzone({
   onToggleFullPath 
 }: DropzoneProps) {
   const { t } = useTranslation()
-  const getDropzoneStyles = () => {
-    const baseStyles = {
-      border: '2px dashed',
-      borderRadius: 'var(--radius-lg)',
-      padding: '4rem',
-      textAlign: 'center' as const,
-      cursor: 'pointer',
-      transition: 'border-color 0.2s ease, background-color 0.2s ease',
-      backgroundColor: 'var(--app-main-view)',
-      borderColor: 'rgba(255, 255, 255, 0.2)',
-      color: 'var(--app-main-view-fg)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '12rem',
-    }
-
-    if (isDragActive) {
-      return {
-        ...baseStyles,
-        borderColor: 'var(--app-accent)',
-        backgroundColor: 'rgba(45, 120, 220, 0.1)',
-      }
-    }
-
-    if (selectedPath && !isLoading) {
-      return {
-        ...baseStyles,
-        paddingBottom: '2rem',
-      }
-    }
-
-    if (isLoading) {
-      return {
-        ...baseStyles,
-        paddingBottom: '4rem',
-      }
-    }
-
-
-    return baseStyles
+  const getDropzoneClasses = () => {
+    const pb = (selectedPath && !isLoading) ? 'pb-8' : 'pb-16'
+    const drag = isDragActive
+      ? 'border-[var(--app-accent)] bg-[rgba(45,120,220,0.1)]'
+      : 'border-white/20 bg-[var(--app-main-view)]'
+    return `border-2 border-dashed rounded-[var(--radius-lg)] px-16 pt-16 ${pb} text-center cursor-pointer ${drag} text-app-fg flex items-center justify-center min-h-48 transition-[border-color,background-color] duration-200`
   }
 
   const getStatusText = () => {
@@ -71,8 +36,7 @@ export function Dropzone({
     if (selectedPath) {
       return (
         <div>
-          <div 
-            className="font-medium cursor-pointer hover:opacity-80 transition-opacity flex items-center justify-center"
+          <div className="font-medium cursor-pointer hover:opacity-80 transition-opacity flex items-center justify-center"
             onClick={onToggleFullPath}
             title="Click to toggle full path"
           >
@@ -85,12 +49,7 @@ export function Dropzone({
               )}
             </span>
           </div>
-          <div 
-            className="text-xs mt-1 opacity-75 break-all transition-opacity"
-            style={{ 
-              visibility: showFullPath ? 'visible' : 'hidden',
-            }}
-          >
+          <div className={`text-xs mt-1 opacity-75 break-all transition-opacity ${showFullPath ? 'visible' : 'invisible'}`}>
             {selectedPath}
           </div>
         </div>
@@ -100,25 +59,23 @@ export function Dropzone({
   }
 
   return (
-    <div style={getDropzoneStyles()}>
+    <div className={getDropzoneClasses()}>
       <div className="space-y-4 w-full">
         <div className="flex justify-center">
           {isLoading ? (
-            <Loader2 className="h-12 w-12 animate-spin" style={{ color: 'var(--app-accent-light)' }} />
+            <Loader2 className="h-12 w-12 animate-spin text-status-done" />
           ) : selectedPath ? (
-            <CheckCircle className="h-12 w-12" style={{ color: 'var(--app-primary)' }} />
+            <CheckCircle className="h-12 w-12 text-status-active" />
           ) : (
-            <Upload className="h-12 w-12" style={{ 
-              color: isDragActive ? 'var(--app-accent-light)' : 'rgba(255, 255, 255, 0.6)' 
-            }} />
+            <Upload className={`h-12 w-12 ${isDragActive ? 'text-status-done' : 'text-white/60'}`} />
           )}
         </div>
         
         <div>
-          <p className="text-lg font-medium mb-2" style={{ color: 'var(--app-main-view-fg)' }}>
+          <p className="text-lg font-medium mb-2 text-app-fg">
             {getStatusText()}
           </p>
-          <div className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+          <div className="text-sm text-white/60">
             {getSubText()}
           </div>
         </div>

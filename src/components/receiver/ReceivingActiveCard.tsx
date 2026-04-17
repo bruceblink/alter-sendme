@@ -22,10 +22,16 @@ export function ReceivingActiveCard({
 }: ReceivingActiveCardProps) {
   const { t } = useTranslation()
   
-  const getStatusColor = () => {
-    if (isCompleted) return 'rgb(45, 120, 220)'
-    if (isTransporting) return 'rgba(37, 211, 101, 0.687)'
-    return '#B7B7B7'
+  const getStatusClass = () => {
+    if (isCompleted) return 'text-status-done'
+    if (isTransporting) return 'text-status-active'
+    return 'text-status-idle'
+  }
+
+  const getIndicatorClass = () => {
+    if (isCompleted) return 'bg-status-done'
+    if (isTransporting) return 'bg-status-active'
+    return 'bg-status-idle'
   }
 
   const getStatusText = () => {
@@ -35,27 +41,22 @@ export function ReceivingActiveCard({
   }
 
 
-  const statusColor = getStatusColor()
+  const statusClass = getStatusClass()
+  const indicatorClass = getIndicatorClass()
   const statusText = getStatusText()
 
   return (
     <div className="space-y-4">
       <div className="p-4 rounded-lg absolute top-0 left-0">
         <div className="flex items-center mb-2">
-          <div 
-            className="h-2 w-2 rounded-full mr-2" 
-            style={{ backgroundColor: statusColor }}
-          ></div>
-          <p 
-            className="text-sm font-medium" 
-            style={{ color: statusColor }}
-          >
+          <div className={`h-2 w-2 rounded-full mr-2 ${indicatorClass}`}></div>
+          <p className={`text-sm font-medium ${statusClass}`}>
             {statusText}
           </p>
         </div>
       </div>
       
-      <p className="text-xs text-center" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+      <p className="text-xs text-center text-white/70">
         {t('common:receiver.keepAppOpen')}
       </p>
         
@@ -65,11 +66,7 @@ export function ReceivingActiveCard({
        
       <button
         onClick={onStopReceiving}
-        className="absolute top-0 right-6 w-10 h-10 rounded-full font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 flex items-center justify-center p-0"
-        style={{
-          backgroundColor: 'var(--app-destructive)',
-          color: 'var(--app-destructive-fg)',
-        }}
+        className="absolute top-0 right-6 w-10 h-10 rounded-full font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 flex items-center justify-center p-0 btn-app-destructive"
         aria-label="Stop receiving"
       >
         <Square className="w-4 h-4" fill="currentColor" />
