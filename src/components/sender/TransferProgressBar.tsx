@@ -1,20 +1,10 @@
 import { useEffect, useRef } from 'react'
 import type { TransferProgress } from '@/types/sender.ts'
 import { useTranslation } from '@/i18n'
+import { formatSpeed } from '@/lib/utils'
 
 interface TransferProgressBarProps {
   progress: TransferProgress
-}
-
-export function formatSpeed(speedBps: number): string {
-  const mbps = speedBps / (1024 * 1024)
-  const kbps = speedBps / 1024
-
-  if (mbps >= 1) {
-    return `${mbps.toFixed(2)} MB/s`
-  } else {
-    return `${kbps.toFixed(2)} KB/s`
-  }
 }
 
 function BarSegment({ fillPercentage }: { fillPercentage: number }) {

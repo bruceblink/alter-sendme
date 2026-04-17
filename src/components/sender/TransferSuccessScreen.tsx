@@ -1,41 +1,7 @@
 import { CheckCircle, XCircle } from 'lucide-react'
 import type { SuccessScreenProps } from '@/types/sender.ts'
 import { useTranslation } from '@/i18n'
-
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return 'NA'
-  
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) {
-    return `${ms}ms`
-  } else if (ms < 60000) {
-    return `${(ms / 1000).toFixed(1)}s`
-  } else {
-    const minutes = Math.floor(ms / 60000)
-    const seconds = ((ms % 60000) / 1000).toFixed(1)
-    return `${minutes}m ${seconds}s`
-  }
-}
-
-function formatSpeed(bytesPerSecond: number): string {
-  if (bytesPerSecond === 0) return 'NA'
-  
-  const mbps = bytesPerSecond / (1024 * 1024)
-  const kbps = bytesPerSecond / 1024
-
-  if (mbps >= 1) {
-    return `${mbps.toFixed(2)} MB/s`
-  } else {
-    return `${kbps.toFixed(2)} KB/s`
-  }
-}
+import { formatFileSize, formatDuration, formatSpeed } from '@/lib/utils'
 
 function calculateAverageSpeed(fileSizeBytes: number, durationMs: number): number {
   if (durationMs === 0) return 0
