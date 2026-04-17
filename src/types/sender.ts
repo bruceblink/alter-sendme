@@ -29,21 +29,6 @@ export interface AlertDialogState {
   type: 'success' | 'error' | 'info'
 }
 
-export interface SharingState {
-  isSharing: boolean
-  ticket: string | null
-  selectedPath: string | null
-  isLoading: boolean
-}
-
-export interface CopyState {
-  copySuccess: boolean
-}
-
-export interface SenderState extends SharingState, CopyState {
-  alertDialog: AlertDialogState
-}
-
 export type AlertType = 'success' | 'error' | 'info'
 
 export interface ShareActionProps {
@@ -73,12 +58,6 @@ export interface TicketDisplayProps {
   onCopyTicket: () => Promise<void>
 }
 
-export interface ReceiverState {
-  ticket: string
-  isReceiving: boolean
-  alertDialog: AlertDialogState
-}
-
 export interface TicketInputProps {
   ticket: string
   isReceiving: boolean
@@ -86,9 +65,6 @@ export interface TicketInputProps {
   onTicketChange: (ticket: string) => void
   onBrowseFolder: () => Promise<void>
   onReceive: () => Promise<void>
-}
-
-export interface InstructionsCardProps {
 }
 
 export interface DragDropState {

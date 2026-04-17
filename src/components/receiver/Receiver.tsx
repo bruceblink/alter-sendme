@@ -46,24 +46,25 @@ export function Receiver({ onTransferStateChange }: ReceiverProps) {
   }, [isReceiving, onTransferStateChange])
 
   return (
-    <div className="p-6 space-y-6 relative h-[28rem] overflow-y-auto flex flex-col" style={{ color: 'var(--app-main-view-fg)' }}>
+    <div className="p-6 space-y-6 relative h-[28rem] overflow-y-auto flex flex-col text-app-fg">
 
       {!isReceiving ? (
         <>
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-2">
-              <h2 className="text-xl font-semibold" style={{ color: 'var(--app-main-view-fg)' }}>
+              <h2 className="text-xl font-semibold text-app-fg">
                 {t('common:receiver.title')}
               </h2>
               <button
                 onClick={() => setShowInstructionsDialog(true)}
-                className="p-1 hover:bg-white/10 rounded-full transition-colors absolute top-6 right-6"
-                style={{ color: 'rgba(255, 255, 255, 0.6)' }}
+                className="p-1 hover:bg-white/10 rounded-full transition-colors absolute top-6 right-6 text-white/60"
+                title={t('common:receiver.howToReceive')}
+                aria-label={t('common:receiver.howToReceive')}
               >
                 <Info size={24} />
               </button>
             </div>
-            <p className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+            <p className="text-sm text-white/60">
               {t('common:receiver.subtitle')}
             </p>
           </div>
@@ -133,7 +134,7 @@ export function Receiver({ onTransferStateChange }: ReceiverProps) {
             <AlertDialogDescription>
            
             </AlertDialogDescription>
-            <ol className="text-sm space-y-2 list-decimal list-inside mt-2" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+            <ol className="text-sm space-y-2 list-decimal list-inside mt-2 text-white/80">
               <li>{t('common:receiver.instruction1')}</li>
               <li>{t('common:receiver.instruction2')}</li>
               <li>{t('common:receiver.instruction3')}</li>

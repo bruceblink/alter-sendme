@@ -204,6 +204,44 @@
   }
 }
 
+@layer components {
+  /* App color text */
+  .text-app-fg {
+    color: var(--app-main-view-fg);
+  }
+
+  /* Button variants */
+  .btn-app-accent {
+    background-color: var(--app-accent);
+    color: var(--app-accent-fg);
+  }
+
+  .btn-app-primary {
+    background-color: var(--app-primary);
+    color: var(--app-primary-fg);
+    border: 1px solid transparent;
+  }
+
+  .btn-app-destructive {
+    background-color: var(--app-destructive);
+    color: var(--app-destructive-fg);
+  }
+
+  .btn-glass {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--app-main-view-fg);
+  }
+
+  /* Transfer status indicator colors */
+  .text-status-idle    { color: #B7B7B7; }
+  .bg-status-idle      { background-color: #B7B7B7; }
+  .text-status-active  { color: var(--app-primary); }
+  .bg-status-active    { background-color: var(--app-primary); }
+  .text-status-done    { color: var(--app-accent-light); }
+  .bg-status-done      { background-color: var(--app-accent-light); }
+}
+
 button, input, textarea {
   transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
 }

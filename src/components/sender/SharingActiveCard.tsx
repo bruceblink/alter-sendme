@@ -18,10 +18,16 @@ export function SharingActiveCard({
 }: SharingControlsProps) {
   const { t } = useTranslation()
   
-  const getStatusColor = () => {
-    if (isCompleted) return 'rgb(45, 120, 220)'
-    if (isTransporting) return 'rgba(37, 211, 101, 0.687)'
-    return '#B7B7B7'
+  const getStatusClass = () => {
+    if (isCompleted) return 'text-status-done'
+    if (isTransporting) return 'text-status-active'
+    return 'text-status-idle'
+  }
+
+  const getIndicatorClass = () => {
+    if (isCompleted) return 'bg-status-done'
+    if (isTransporting) return 'bg-status-active'
+    return 'bg-status-idle'
   }
 
   const getStatusText = () => {
@@ -30,7 +36,8 @@ export function SharingActiveCard({
     return t('common:sender.listeningForConnection')
   }
 
-  const statusColor = getStatusColor()
+  const statusClass = getStatusClass()
+  const indicatorClass = getIndicatorClass()
   const statusText = getStatusText()
 
   const [cumulativeBytesTransferred, setCumulativeBytesTransferred] = useState(0)
@@ -112,28 +119,22 @@ export function SharingActiveCard({
 
   return (
     <div className="space-y-4">
-      <div className="p-4 rounded-lg absolute top-0 left-0">
-           <p className="text-xs mb-4 max-w-[30rem] truncate" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+      <div className="absolute top-0 left-0 p-4 rounded-lg">
+        <p className="text-xs mb-4 max-w-[30rem] truncate text-white/70">
           <strong className="mr-1">{t('common:sender.fileLabel')}</strong> {selectedPath ? basenameFromPath(selectedPath) : ''}
         </p>
-        
+
         <div className="flex items-center mb-2">
-          <div 
-            className="h-2 w-2 rounded-full mr-2" 
-            style={{ backgroundColor: statusColor }}
-          ></div>
-          <p 
-            className="text-sm font-medium" 
-            style={{ color: statusColor }}
-          >
+          <div className={`h-2 w-2 rounded-full mr-2 ${indicatorClass}`}></div>
+          <p className={`text-sm font-medium ${statusClass}`}>
             {statusText}
           </p>
         </div>
       </div>
       
-      <p className="text-xs text-center" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-          {t('common:sender.keepAppOpen')}
-        </p>
+      <p className="text-xs text-center text-white/70">
+        {t('common:sender.keepAppOpen')}
+      </p>
         
       {!isTransporting && ticket && (
         <TicketDisplay 
@@ -154,12 +155,9 @@ export function SharingActiveCard({
     
       <button
         onClick={onStopSharing}
-        className="absolute top-0 right-6 w-10 h-10 rounded-full font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 flex items-center justify-center p-0"
-        style={{
-          backgroundColor: 'var(--app-destructive)',
-          color: 'var(--app-destructive-fg)',
-        }}
+        className="absolute top-0 right-6 w-10 h-10 rounded-full font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 flex items-center justify-center p-0 btn-app-destructive"
         aria-label="Stop sharing"
+        title={t('common:sender.stopSharing')}
       >
         <Square className="w-4 h-4" fill="currentColor" />
       </button>
@@ -172,7 +170,7 @@ export function TicketDisplay({ ticket, copySuccess, onCopyTicket }: TicketDispl
   
   return (
     <div className="space-y-3">
-      <label className="block text-sm font-medium" style={{ color: 'var(--app-main-view-fg)' }}>
+      <label className="block text-sm font-medium text-app-fg">
         {t('common:sender.shareThisTicket')}
       </label>
       <div className="flex gap-2">
@@ -180,27 +178,18 @@ export function TicketDisplay({ ticket, copySuccess, onCopyTicket }: TicketDispl
           type="text"
           value={ticket}
           readOnly
-          className="flex-1 p-3 rounded-md text-xs font-mono"
-          style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            color: 'var(--app-main-view-fg)',
-          }}
+          title={t('common:sender.shareThisTicket')}
+          className="flex-1 p-3 font-mono text-xs rounded-md bg-white/10 border border-white/20 text-app-fg"
         />
         <button
           onClick={onCopyTicket}
-          className="px-3 py-2 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-          style={{
-            backgroundColor: copySuccess ? 'var(--app-primary)' : 'rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            color: copySuccess ? 'var(--app-primary-fg)' : 'var(--app-main-view-fg)',
-          }}
+          className={`px-3 py-2 transition-colors rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${copySuccess ? 'btn-app-primary' : 'btn-glass'}`}
           title={t('common:sender.copyToClipboard')}
         >
-          {copySuccess ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          {copySuccess ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
         </button>
       </div>
-      <p className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+      <p className="text-xs text-white/60">
         {t('common:sender.sendThisTicket')}
       </p>
     </div>

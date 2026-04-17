@@ -15,28 +15,17 @@ export function TicketInput({
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--app-main-view-fg)' }}>
+        <label className="block mb-2 text-sm font-medium text-app-fg">
           {t('common:receiver.saveToFolder')}
         </label>
         <div className="flex gap-2">
-          <div
-            className="p-3 rounded-md text-sm font-mono flex items-center"
-            style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              color: 'var(--app-main-view-fg)',
-              width: '85%',
-            }}
-          >
+          <div className="p-3 rounded-md text-sm font-mono flex items-center w-[85%] bg-white/10 text-app-fg">
             {savePath || t('common:receiver.noFolderSelected')}
           </div>
           <button
             onClick={onBrowseFolder}
             disabled={isReceiving}
-            className="w-[15%] py-3 px-4 rounded-md font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-            style={{
-              backgroundColor: 'var(--app-accent)',
-              color: 'var(--app-accent-fg)',
-            }}
+            className="w-[15%] py-3 px-4 rounded-md font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center btn-app-accent"
           >
             {t('common:browse')}
           </button>
@@ -44,7 +33,7 @@ export function TicketInput({
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--app-main-view-fg)' }}>
+        <label className="block mb-2 text-sm font-medium text-app-fg">
           {t('common:receiver.pasteTicket')}
         </label>
         <div className="flex gap-2 p-0.5">
@@ -60,30 +49,17 @@ export function TicketInput({
               }
             }}
             placeholder={t('common:receiver.ticketPlaceholder')}
-            className="p-3 rounded-md text-sm font-mono resize-none focus:outline-none focus:ring-2"
-            style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              color: 'var(--app-main-view-fg)',
-              width: '85%',
-              lineHeight: '1.4',
-              wordWrap: 'break-word',
-              overflowWrap: 'break-word',
-              overflowX: 'hidden',
-              fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-            }}
+            title={t('common:receiver.pasteTicket')}
+            className="p-3 rounded-md text-sm font-mono resize-none focus:outline-none focus:ring-2 w-[85%] bg-white/10 border border-white/20 text-app-fg leading-[1.4] break-words overflow-x-hidden"
             rows={6}
           />
           <button
             onClick={onReceive}
             disabled={!ticket.trim() || isReceiving}
-            className="w-[15%] py-3 px-4 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-80 flex items-center justify-center"
-            style={{
-              backgroundColor: (!ticket.trim() || isReceiving) ? 'var(--app-accent)' : 'var(--app-primary)',
-              color: 'var(--app-accent-fg)',
-            }}
+            title={t('common:receive')}
+            className={`w-[15%] py-3 px-4 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-80 flex items-center justify-center ${(!ticket.trim() || isReceiving) ? 'btn-app-accent' : 'btn-app-primary'}`}
           >
-            <Download className="h-8 w-8" />
+            <Download className="w-8 h-8" />
           </button>
         </div>
       </div>
