@@ -23,6 +23,7 @@ export interface UseReceiverReturn {
   handleTicketChange: (ticket: string) => void
   handleBrowseFolder: () => Promise<void>
   handleReceive: () => Promise<void>
+  stopReceiving: () => Promise<void>
   showAlert: (title: string, description: string, type?: AlertType) => void
   closeAlert: () => void
   resetForNewTransfer: () => Promise<void>
@@ -288,6 +289,15 @@ export function useReceiver(): UseReceiverReturn {
     folderOpenTriggeredRef.current = false
   }
 
+  const stopReceiving = async () => {
+    try {
+      await invoke('cancel_receive')
+    } catch (error) {
+      console.error('Failed to cancel receive:', error)
+    }
+    await resetForNewTransfer()
+  }
+
   useEffect(() => {
     if (!isCompleted) {
       folderOpenTriggeredRef.current = false
@@ -331,6 +341,7 @@ export function useReceiver(): UseReceiverReturn {
     handleTicketChange,
     handleBrowseFolder,
     handleReceive,
+    stopReceiving,
     showAlert,
     closeAlert,
     resetForNewTransfer

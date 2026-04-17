@@ -1,5 +1,6 @@
 use crate::commands::{
-    check_path_type, get_file_size, get_sharing_status, receive_file, start_sharing, stop_sharing,
+    cancel_receive, check_path_type, get_file_size, get_sharing_status, receive_file,
+    start_sharing, stop_sharing,
 };
 use crate::state::AppState;
 use std::fs;
@@ -36,6 +37,7 @@ pub fn run() {
             start_sharing,
             stop_sharing,
             receive_file,
+            cancel_receive,
             get_sharing_status,
             check_path_type,
             get_file_size,

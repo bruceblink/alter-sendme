@@ -38,6 +38,7 @@ export function Receiver({ onTransferStateChange }: ReceiverProps) {
     handleTicketChange,
     handleBrowseFolder,
     handleReceive,
+    stopReceiving,
     closeAlert,
     resetForNewTransfer
   } = useReceiver()
@@ -58,7 +59,7 @@ export function Receiver({ onTransferStateChange }: ReceiverProps) {
               </h2>
               <button
                 onClick={() => setShowInstructionsDialog(true)}
-                className="p-1 hover:bg-white/10 rounded-full transition-colors absolute top-6 right-6 text-white/60"
+                className="absolute p-1 transition-colors rounded-full hover:bg-white/10 top-6 right-6 text-white/60"
                 title={t('common:receiver.howToReceive')}
                 aria-label={t('common:receiver.howToReceive')}
               >
@@ -70,7 +71,7 @@ export function Receiver({ onTransferStateChange }: ReceiverProps) {
             </p>
           </div>
 
-          <div className="space-y-4 flex-1 flex flex-col">
+          <div className="flex flex-col flex-1 space-y-4">
             <TicketInput
               ticket={ticket}
               isReceiving={isReceiving}
@@ -82,7 +83,7 @@ export function Receiver({ onTransferStateChange }: ReceiverProps) {
           </div>
         </>
       ) : isCompleted && transferMetadata ? (
-        <div className="flex-1 flex flex-col">
+        <div className="flex flex-col flex-1">
           <TransferSuccessScreen 
             metadata={transferMetadata}
             onDone={resetForNewTransfer}
@@ -94,10 +95,10 @@ export function Receiver({ onTransferStateChange }: ReceiverProps) {
             <PulseAnimation 
               isTransporting={isTransporting}
               isCompleted={isCompleted}
-              className="mx-auto my-4 flex items-center justify-center" 
+              className="flex items-center justify-center mx-auto my-4" 
             />
           </div>
-          <div className="flex-1 flex flex-col">
+          <div className="flex flex-col flex-1">
             <ReceivingActiveCard
               isReceiving={isReceiving}
               isTransporting={isTransporting}
@@ -106,7 +107,7 @@ export function Receiver({ onTransferStateChange }: ReceiverProps) {
               transferProgress={transferProgress}
               fileNames={fileNames}
               onReceive={handleReceive}
-              onStopReceiving={resetForNewTransfer}
+              onStopReceiving={stopReceiving}
             />
           </div>
         </>
@@ -127,7 +128,7 @@ export function Receiver({ onTransferStateChange }: ReceiverProps) {
             <AlertDialogDescription>
            
             </AlertDialogDescription>
-            <ol className="text-sm space-y-2 list-decimal list-inside mt-2 text-white/80">
+            <ol className="mt-2 space-y-2 text-sm list-decimal list-inside text-white/80">
               <li>{t('common:receiver.instruction1')}</li>
               <li>{t('common:receiver.instruction2')}</li>
               <li>{t('common:receiver.instruction3')}</li>

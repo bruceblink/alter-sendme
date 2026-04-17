@@ -183,6 +183,7 @@ pub async fn stop_sharing(state: State<'_, AppStateMutex>) -> Result<(), String>
 pub async fn receive_file(
     ticket: String,
     output_path: String,
+    state: State<'_, AppStateMutex>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, String> {
     // Create receive options with user-specified output path
@@ -200,14 +201,43 @@ pub async fn receive_file(
     });
     let boxed_handle: AppHandle = Some(emitter);
 
-    // Download using the core library
-    match receive(ticket, options, boxed_handle).await {
-        Ok(result) => Ok(result.message),
-        Err(e) => {
+    // Spawn the receive task so it can be aborted via cancel_receive
+    let task = tokio::spawn(async move { receive(ticket, options, boxed_handle).await });
+
+    // Store the abort handle so cancel_receive can stop it
+    {
+        let mut app_state = state.lock().await;
+        app_state.current_receive = Some(task.abort_handle());
+    }
+
+    // Await the (possibly aborted) task
+    let result = match task.await {
+        Ok(Ok(result)) => Ok(result.message),
+        Ok(Err(e)) => {
             tracing::error!("Failed to receive file: {}", e);
             Err(format!("Failed to receive file: {}", e))
         }
+        Err(e) if e.is_cancelled() => Err("Transfer cancelled".to_string()),
+        Err(e) => Err(format!("Receive task panicked: {}", e)),
+    };
+
+    // Clear the abort handle once done
+    {
+        let mut app_state = state.lock().await;
+        app_state.current_receive = None;
     }
+
+    result
+}
+
+/// Cancel an in-progress receive operation
+#[tauri::command]
+pub async fn cancel_receive(state: State<'_, AppStateMutex>) -> Result<(), String> {
+    let mut app_state = state.lock().await;
+    if let Some(handle) = app_state.current_receive.take() {
+        handle.abort();
+    }
+    Ok(())
 }
 
 /// Get the current sharing status
