@@ -19,7 +19,6 @@ export interface TransferProgress {
 export interface SuccessScreenProps {
   metadata: TransferMetadata
   onDone: () => void
-  wasStopped?: boolean
 }
 
 export interface AlertDialogState {

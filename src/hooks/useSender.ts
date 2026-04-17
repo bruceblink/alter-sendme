@@ -1,9 +1,11 @@
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {invoke} from '@tauri-apps/api/core'
-import {listen, UnlistenFn} from '@tauri-apps/api/event'
+import {listen, UnlistenFn, type Event} from '@tauri-apps/api/event'
 import {useTranslation} from '@/i18n'
 import { basenameFromPath } from '@/lib/path'
 import type {AlertDialogState, AlertType, TransferMetadata, TransferProgress} from '@/types/sender'
+
+interface ProgressPayload { processed: number; total: number; speed: number }
 
 export interface UseSenderReturn {
   isSharing: boolean
@@ -23,7 +25,6 @@ export interface UseSenderReturn {
   startSharing: () => Promise<void>
   stopSharing: () => Promise<void>
   copyTicket: () => Promise<void>
-  showAlert: (title: string, description: string, type?: AlertType) => void
   closeAlert: () => void
   resetForNewTransfer: () => Promise<void>
 }
@@ -93,7 +94,7 @@ export function useSender(): UseSenderReturn {
         }, 50)
       })
 
-        unlistenProgress = await listen('transfer:sender:progress', (event: any) => {
+        unlistenProgress = await listen<ProgressPayload>('transfer:sender:progress', (event: Event<ProgressPayload>) => {
             try {
                 const progress = event.payload
                 const bytesTransferred = Number(progress.processed)
@@ -394,7 +395,7 @@ export function useSender(): UseSenderReturn {
     startSharing,
     stopSharing,
     copyTicket,
-    showAlert,
+
     closeAlert,
     resetForNewTransfer
   }

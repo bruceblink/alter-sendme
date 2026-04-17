@@ -1,12 +1,13 @@
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {invoke} from '@tauri-apps/api/core'
-import {listen, UnlistenFn} from '@tauri-apps/api/event'
+import {listen, UnlistenFn, type Event} from '@tauri-apps/api/event'
 import {open} from '@tauri-apps/plugin-dialog'
 import {downloadDir, join} from '@tauri-apps/api/path'
 import {revealItemInDir} from '@tauri-apps/plugin-opener'
 import {useTranslation} from '@/i18n'
 import { basenameFromPath } from '@/lib/path'
 import type {AlertDialogState, AlertType, TransferMetadata, TransferProgress} from '@/types/sender'
+interface ProgressPayload { processed: number; total: number; speed: number }
 
 export interface UseReceiverReturn {
   ticket: string
@@ -36,7 +37,6 @@ export function useReceiver(): UseReceiverReturn {
   const [savePath, setSavePath] = useState('')
   const [transferMetadata, setTransferMetadata] = useState<TransferMetadata | null>(null)
   const [transferProgress, setTransferProgress] = useState<TransferProgress | null>(null)
-  const [transferStartTime, setTransferStartTime] = useState<number | null>(null)
   const [fileNames, setFileNames] = useState<string[]>([])
   
   const fileNamesRef = useRef<string[]>([])
@@ -106,11 +106,7 @@ export function useReceiver(): UseReceiverReturn {
   }, [transferProgress])
   
   useEffect(() => {
-    transferStartTimeRef.current = transferStartTime
-  }, [transferStartTime])
-  
-  useEffect(() => {
-    savePathRef.current = savePath
+
   }, [savePath])
   
   const [alertDialog, setAlertDialog] = useState<AlertDialogState>({
@@ -143,11 +139,11 @@ export function useReceiver(): UseReceiverReturn {
         unlistenStart = await listen('transfer:receiver:started', () => {
         setIsTransporting(true)
         setIsCompleted(false)
-        setTransferStartTime(Date.now())
+        transferStartTimeRef.current = Date.now()
         setTransferProgress(null)
       })
 
-        unlistenProgress = await listen('transfer:receiver:progress', (event: any) => {
+        unlistenProgress = await listen<ProgressPayload>('transfer:receiver:progress', (event: Event<ProgressPayload>) => {
             try {
                 const progress = event.payload // 已经是对象，不需要 JSON.parse
                 const bytesTransferred = Number(progress.processed)
@@ -166,7 +162,7 @@ export function useReceiver(): UseReceiverReturn {
             }
         })
 
-        unlistenFileNames = await listen('transfer:receiver:file-names', (event: any) => {
+        unlistenFileNames = await listen<string[]>('transfer:receiver:file-names', (event: Event<string[]>) => {
         try {
             const names = event.payload as string[]
           
@@ -264,7 +260,7 @@ export function useReceiver(): UseReceiverReturn {
       setIsCompleted(false)
       setTransferMetadata(null)
       setTransferProgress(null)
-      setTransferStartTime(null)
+      transferStartTimeRef.current = null
       folderOpenTriggeredRef.current = false
       
       await invoke<string>('receive_file', { 
@@ -287,7 +283,7 @@ export function useReceiver(): UseReceiverReturn {
     setTicket('')
     setTransferMetadata(null)
     setTransferProgress(null)
-    setTransferStartTime(null)
+    transferStartTimeRef.current = null
     setFileNames([])
     folderOpenTriggeredRef.current = false
   }
