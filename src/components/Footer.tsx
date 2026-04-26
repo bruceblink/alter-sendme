@@ -4,6 +4,7 @@ import {LanguageSwitcher} from "@/components/LanguageSwitcher.tsx";
 import {useTranslation} from "@/i18n";
 import {useEffect, useState} from "react";
 import {getVersion} from "@tauri-apps/api/app";
+import {ThemeSwitcher} from "@/components/ThemeSwitcher.tsx";
 
 export function Footer() {
     const [appVersion, setAppVersion] = useState('.....');
@@ -34,7 +35,8 @@ export function Footer() {
             >
                 {t('common:donate')}
             </button>
-            <div className="absolute right-4 bottom-2">
+            <div className="absolute flex items-center gap-1 right-4 bottom-2">
+                <ThemeSwitcher/>
                 <LanguageSwitcher/>
             </div>
         </div>

@@ -13,9 +13,7 @@ export function initializePlatformStyles(): void {
 
   const root = document.documentElement
 
-  root.style.setProperty('--app-bg', `rgba(25, 25, 25, ${alpha})`)
-
-  root.style.setProperty('--app-main-view', `rgba(25, 25, 25, 1)`)
+  root.style.setProperty('--window-alpha', String(alpha))
 
   if (IS_TAURI && IS_MACOS) {
     root.style.setProperty('--body-bg', 'transparent')

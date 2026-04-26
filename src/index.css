@@ -26,16 +26,50 @@
 :root {
   --radius: 0.625rem;
   --font-size-base: 15px;
+  --window-alpha: 1;
   
-  --app-bg: rgba(25, 25, 25, 1);
-  --app-main-view: rgba(25, 25, 25, 1);
-  --app-primary: rgba(37, 211, 101, 0.687);
-  --app-accent-light: rgb(45, 120, 220);
+  --app-bg-rgb: 25 25 25;
+  --app-bg: rgb(var(--app-bg-rgb) / var(--window-alpha));
+  --app-main-view: rgb(25 25 25 / 1);
+  --app-primary: rgb(37 211 101 / 0.687);
+  --app-accent-light: rgb(45 120 220);
   --app-accent: rgb(54 54 54);
-  --app-destructive: rgb(144, 60, 60);
+  --app-destructive: rgb(144 60 60);
   
   --body-bg: rgba(25, 25, 25, 1);
   
+  --app-bg-fg: rgb(255, 255, 255);
+  --app-main-view-fg: rgb(255, 255, 255);
+  --app-primary-fg: rgb(255, 255, 255);
+  --app-accent-fg: rgb(255, 255, 255);
+  --app-destructive-fg: rgb(255, 255, 255);
+}
+
+html[data-theme='light'] {
+  --app-bg-rgb: 242 245 249;
+  --app-bg: rgb(var(--app-bg-rgb) / var(--window-alpha));
+  --app-main-view: rgb(255 255 255 / 1);
+  --app-primary: rgb(27 173 86 / 0.9);
+  --app-accent-light: rgb(40 110 206);
+  --app-accent: rgb(224 231 239);
+  --app-destructive: rgb(193 57 57);
+  --body-bg: rgb(242 245 249);
+  --app-bg-fg: rgb(23 24 27);
+  --app-main-view-fg: rgb(23 24 27);
+  --app-primary-fg: rgb(255, 255, 255);
+  --app-accent-fg: rgb(23 24 27);
+  --app-destructive-fg: rgb(255, 255, 255);
+}
+
+html[data-theme='dark'] {
+  --app-bg-rgb: 25 25 25;
+  --app-bg: rgb(var(--app-bg-rgb) / var(--window-alpha));
+  --app-main-view: rgb(25 25 25 / 1);
+  --app-primary: rgb(37 211 101 / 0.687);
+  --app-accent-light: rgb(45 120 220);
+  --app-accent: rgb(54 54 54);
+  --app-destructive: rgb(144 60 60);
+  --body-bg: rgb(25 25 25);
   --app-bg-fg: rgb(255, 255, 255);
   --app-main-view-fg: rgb(255, 255, 255);
   --app-primary-fg: rgb(255, 255, 255);

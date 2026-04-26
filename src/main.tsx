@@ -4,7 +4,9 @@ import App from './App.tsx'
 import './index.css'
 import './i18n'
 import {initializePlatformStyles} from './lib/platformStyles'
+import {applyStoredTheme} from './lib/theme'
 
+applyStoredTheme()
 initializePlatformStyles()
 
 // prevent right click menu

@@ -6,6 +6,12 @@
   "loading": "Loading...",
   "browse": "Browse",
   "donate": "Donate",
+  "theme": {
+    "system": "System",
+    "dark": "Dark",
+    "light": "Light",
+    "switchHint": "Switch theme: {{theme}}"
+  },
   "sender": {
     "title": "Send",
     "subtitle": "Share files or folders via encrypted peer-to-peer connections.",

@@ -6,6 +6,12 @@
   "loading": "加载中...",
   "browse": "浏览",
   "donate": "捐赠",
+  "theme": {
+    "system": "系统",
+    "dark": "深色",
+    "light": "浅色",
+    "switchHint": "切换主题：{{theme}}"
+  },
   "sender": {
     "title": "发送",
     "subtitle": "通过加密的点对点连接共享文件或文件夹。",
