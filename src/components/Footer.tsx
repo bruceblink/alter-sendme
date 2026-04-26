@@ -5,10 +5,12 @@ import {useTranslation} from "@/i18n";
 import {useEffect, useState} from "react";
 import {getVersion} from "@tauri-apps/api/app";
 import {ThemeSwitcher} from "@/components/ThemeSwitcher.tsx";
+import {useAutoUpdater} from "@/hooks/useAutoUpdater.ts";
 
 export function Footer() {
     const [appVersion, setAppVersion] = useState('.....');
     const {t} = useTranslation()
+    const {isChecking, statusMessage, checkForUpdates} = useAutoUpdater()
 
     useEffect(() => {
         void getVersion().then(setAppVersion);
@@ -23,6 +25,11 @@ export function Footer() {
                 v{appVersion}
             </a>
         </span>
+            {statusMessage && (
+                <span className="absolute text-[11px] opacity-80 left-1/2 -translate-x-1/2 bottom-2 max-w-[40%] truncate" title={statusMessage}>
+                    {statusMessage}
+                </span>
+            )}
             <button
                 onClick={async () => {
                     try {
@@ -36,6 +43,13 @@ export function Footer() {
                 {t('common:donate')}
             </button>
             <div className="absolute flex items-center gap-1 right-4 bottom-2">
+                <button
+                    onClick={() => void checkForUpdates(true)}
+                    disabled={isChecking}
+                    className="flex items-center gap-1 px-2 py-1 text-xs underline transition-colors cursor-pointer hover:opacity-80 text-app-fg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {isChecking ? t('common:update.checking') : t('common:update.checkNow')}
+                </button>
                 <ThemeSwitcher/>
                 <LanguageSwitcher/>
             </div>

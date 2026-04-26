@@ -6,6 +6,14 @@
   "loading": "Loading...",
   "browse": "Browse",
   "donate": "Donate",
+  "update": {
+    "checkNow": "Check Update",
+    "checking": "Checking...",
+    "upToDate": "Already latest",
+    "found": "Updating to v{{version}}...",
+    "installed": "Update installed, restart app to apply",
+    "failed": "Update check failed"
+  },
   "theme": {
     "system": "System",
     "dark": "Dark",

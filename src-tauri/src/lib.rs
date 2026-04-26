@@ -43,6 +43,10 @@ pub fn run() {
             get_file_size,
         ])
         .setup(|_app| {
+            if let Err(error) = _app.handle().plugin(tauri_plugin_updater::Builder::new().build()) {
+                tracing::warn!("Updater plugin disabled due to invalid config: {}", error);
+            }
+
             // Clean up any orphaned .sendmer-* directories from previous runs
             cleanup_orphaned_directories();
 

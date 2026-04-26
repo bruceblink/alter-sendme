@@ -6,6 +6,14 @@
   "loading": "加载中...",
   "browse": "浏览",
   "donate": "捐赠",
+  "update": {
+    "checkNow": "检查更新",
+    "checking": "检查中...",
+    "upToDate": "已是最新版本",
+    "found": "正在更新到 v{{version}}...",
+    "installed": "更新已安装，重启应用后生效",
+    "failed": "检查更新失败"
+  },
   "theme": {
     "system": "系统",
     "dark": "深色",

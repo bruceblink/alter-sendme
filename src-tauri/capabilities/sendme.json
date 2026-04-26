@@ -10,6 +10,7 @@
     "core:window:allow-set-theme",
     "core:window:allow-set-focus",
     "os:default",
+    "updater:default",
     "opener:default",
     "dialog:default",
     "dialog:allow-open",
