@@ -37,8 +37,16 @@ export function useAutoUpdater() {
         setStatusMessage(t('common:update.installed'))
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
+        const isNoUpdateAvailable =
+          message.includes('404') ||
+          message.includes('No update available') ||
+          message.toLowerCase().includes('not found')
         if (manual) {
-          setStatusMessage(`${t('common:update.failed')}: ${message}`)
+          if (isNoUpdateAvailable) {
+            setStatusMessage(t('common:update.upToDate'))
+          } else {
+            setStatusMessage(`${t('common:update.failed')}: ${message}`)
+          }
         } else {
           console.warn('Auto update check skipped due to error:', message)
         }
