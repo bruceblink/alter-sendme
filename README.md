@@ -38,9 +38,9 @@ Download the latest build from [GitHub Releases](https://github.com/bruceblink/a
 
 Direct links for `v0.1.7`:
 
-- Windows: [AlterSendme_0.1.7_x64-setup.exe](https://github.com/bruceblink/alter-sendme/releases/download/v0.1.7/AlterSendme_0.1.7_x64-setup.exe)
-- macOS: [AlterSendme_0.1.7_universal.dmg](https://github.com/bruceblink/alter-sendme/releases/download/v0.1.7/AlterSendme_0.1.7_universal.dmg)
-- Linux: [AlterSendme_0.1.7_amd64.deb](https://github.com/bruceblink/alter-sendme/releases/download/v0.1.7/AlterSendme_0.1.7_amd64.deb)
+- Windows: [AlterSendme_0.2.0_x64-setup.exe](https://github.com/bruceblink/alter-sendme/releases/download/v0.2.0/AlterSendme_0.2.0_x64-setup.exe)
+- macOS: [AlterSendme_0.2.0_universal.dmg](https://github.com/bruceblink/alter-sendme/releases/download/v0.2.0/AlterSendme_0.2.0_universal.dmg)
+- Linux: [AlterSendme_0.2.0_amd64.deb](https://github.com/bruceblink/alter-sendme/releases/download/v0.2.0/AlterSendme_0.2.0_amd64.deb)
 
 ## Supported Languages
 
@@ -135,4 +135,4 @@ Issues and PRs are welcome. If you want to help, start with bug fixes, UX polish
 - [GitHub Sponsors](https://github.com/sponsors/bruceblink)
 - [Buy Me a Coffee](https://buymeacoffee.com/bruceblink)
 
-[badge-version]: https://img.shields.io/badge/version-0.1.7-blue
+[badge-version]: https://img.shields.io/badge/version-0.2.0-blue
